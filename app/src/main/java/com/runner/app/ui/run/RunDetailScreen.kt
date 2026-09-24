@@ -101,7 +101,7 @@ private fun RunDetailBody(run: RunRecord) {
     LazyColumn(Modifier.padding(horizontal = 16.dp)) {
         item {
             Card(Modifier.fillMaxWidth()) {
-                RouteCanvas(run.points, Modifier.fillMaxWidth().height(260.dp))
+                RouteMap(run.points, Modifier.fillMaxWidth().height(320.dp))
             }
         }
         item {

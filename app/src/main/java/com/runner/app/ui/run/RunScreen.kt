@@ -133,7 +133,7 @@ fun RunScreen(onOpenRun: (String) -> Unit) {
                         Text("GPS 신호를 찾는 중… 하늘이 트인 곳에서 더 빨라요", style = MaterialTheme.typography.bodySmall)
                     }
                     if (active) {
-                        RouteCanvas(tracking.points, Modifier.fillMaxWidth().height(200.dp).padding(top = 12.dp))
+                        RouteMap(tracking.points, Modifier.fillMaxWidth().height(260.dp).padding(top = 12.dp), follow = true)
                     }
                     Spacer(Modifier.height(16.dp))
                     ControlButtons(

@@ -30,6 +30,7 @@ import androidx.navigation.navArgument
 import com.runner.app.ui.crew.CrewScreen
 import com.runner.app.ui.plan.PlanScreen
 import com.runner.app.ui.race.RaceScreen
+import com.runner.app.ui.run.AllRoutesScreen
 import com.runner.app.ui.run.RunDetailScreen
 import com.runner.app.ui.run.RunScreen
 import com.runner.app.ui.theme.RunnerTheme
@@ -73,8 +74,9 @@ private fun RunnerNav() {
     ) { padding ->
         NavHost(nav, startDestination = "run", modifier = Modifier.padding(padding)) {
             composable("run") {
-                RunScreen(onOpenRun = { id -> nav.navigate("run/$id") })
+                RunScreen(onOpenRun = { id -> nav.navigate("run/$id") }, onOpenAllRoutes = { nav.navigate("routes") })
             }
+            composable("routes") { AllRoutesScreen(onBack = { nav.popBackStack() }) }
             composable("run/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 RunDetailScreen(id = it.arguments?.getString("id").orEmpty(), onBack = { nav.popBackStack() })
             }

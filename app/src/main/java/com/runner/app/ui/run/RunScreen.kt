@@ -60,7 +60,7 @@ import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
 @Composable
-fun RunScreen(onOpenRun: (String) -> Unit) {
+fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
     val context = LocalContext.current
     val container = rememberContainer()
     val tracking by TrackingState.state.collectAsStateWithLifecycle()
@@ -148,7 +148,12 @@ fun RunScreen(onOpenRun: (String) -> Unit) {
         }
         if (!active) {
             item { WeeklySummary(runs) }
-            item { SectionTitle("기록") }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    SectionTitle("기록")
+                    if (runs.any { it.points.size > 1 }) TextButton(onClick = onOpenAllRoutes) { Text("전체 경로 지도") }
+                }
+            }
             if (runs.isEmpty()) {
                 item { Text("아직 기록이 없어요. 첫 러닝을 시작해보세요!", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }

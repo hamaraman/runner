@@ -10,7 +10,7 @@ playServicesLocation = "21.3.0"
 serialization = "1.7.3"
 coroutines = "1.9.0"
 junit = "4.13.2"
-osmdroid = "6.1.20"
+naverMap = "3.21.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -27,7 +27,7 @@ androidx-compose-material-icons = { group = "androidx.compose.material", name = 
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
-osmdroid = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
+naver-map = { group = "com.naver.maps", name = "map-sdk", version.ref = "naverMap" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]

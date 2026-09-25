@@ -28,6 +28,10 @@
             </intent-filter>
         </activity>
 
+        <meta-data
+            android:name="com.naver.maps.map.NCP_KEY_ID"
+            android:value="${naverMapClientId}" />
+
         <service
             android:name=".tracking.RunTrackingService"
             android:exported="false"

@@ -12,20 +12,22 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.naver.maps.geometry.LatLng
+import com.naver.maps.geometry.LatLngBounds
+import com.naver.maps.map.CameraPosition
+import com.naver.maps.map.CameraUpdate
+import com.naver.maps.map.MapView
+import com.naver.maps.map.NaverMap
+import com.naver.maps.map.NaverMapOptions
+import com.naver.maps.map.overlay.Marker
+import com.naver.maps.map.overlay.Overlay
+import com.naver.maps.map.overlay.PathOverlay
 import com.runner.core.TrackPoint
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.BoundingBox
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.CustomZoomButtonsController
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.CopyrightOverlay
-import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.Polyline
 
-private val SEOUL = GeoPoint(37.5665, 126.9780)
+private val SEOUL = LatLng(37.5665, 126.9780)
 
 /**
- * OpenStreetMap 지도 위에 러닝 경로를 그린다(API 키 불필요).
+ * 네이버 지도 위에 러닝 경로를 그린다.
  * @param follow true면 마지막 위치를 따라가고(러닝 중), false면 전체 경로가 보이게 맞춘다(기록 상세).
  */
 @SuppressLint("ClickableViewAccessibility")
@@ -33,14 +35,15 @@ private val SEOUL = GeoPoint(37.5665, 126.9780)
 fun RouteMap(points: List<TrackPoint>, modifier: Modifier = Modifier, follow: Boolean = false) {
     val context = LocalContext.current
     val lineColor = MaterialTheme.colorScheme.primary.toArgb()
-    val fitted = remember { booleanArrayOf(false) }
+    // 지도는 비동기로 준비된다. 준비 전 들어온 points는 준비되는 순간 다시 그린다.
+    val state = remember { MapState() }
     val mapView = remember {
-        MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
-            setMultiTouchControls(true)
-            zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
-            controller.setZoom(16.0)
-            controller.setCenter(SEOUL)
+        MapView(context, NaverMapOptions().camera(CameraPosition(SEOUL, 16.0)).zoomControlEnabled(false)).apply {
+            onCreate(null)
+            getMapAsync { map ->
+                state.map = map
+                state.draw(state.lastPoints, lineColor, follow)
+            }
             // 스크롤 목록 안에서도 지도 드래그가 먹히도록
             setOnTouchListener { v, _ ->
                 v.parent?.requestDisallowInterceptTouchEvent(true)
@@ -53,50 +56,58 @@ fun RouteMap(points: List<TrackPoint>, modifier: Modifier = Modifier, follow: Bo
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
+                Lifecycle.Event.ON_START -> mapView.onStart()
                 Lifecycle.Event.ON_RESUME -> mapView.onResume()
                 Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                Lifecycle.Event.ON_STOP -> mapView.onStop()
                 else -> Unit
             }
         }
         lifecycle.addObserver(observer)
         onDispose {
             lifecycle.removeObserver(observer)
-            mapView.onDetach()
+            mapView.onDestroy()
         }
     }
 
-    AndroidView(factory = { mapView }, modifier = modifier, update = { map ->
-        map.overlays.clear()
-        val geo = points.map { GeoPoint(it.lat, it.lng) }
-        // 일시정지 구간끼리는 선을 잇지 않도록 segment별로 따로 그린다
-        points.indices.groupBy { points[it].segment }.values.forEach { idx ->
-            map.overlays.add(Polyline(map).apply {
-                setPoints(idx.map { geo[it] })
-                outlinePaint.color = lineColor
-                outlinePaint.strokeWidth = 12f
-            })
-        }
-        if (geo.isNotEmpty()) {
-            map.overlays.add(marker(map, geo.first(), "출발"))
-            if (!follow && geo.size > 1) map.overlays.add(marker(map, geo.last(), "도착"))
-        }
-        map.overlays.add(CopyrightOverlay(map.context))
-
-        when {
-            follow && geo.isNotEmpty() -> map.controller.animateTo(geo.last())
-            !follow && !fitted[0] && geo.size > 1 -> {
-                fitted[0] = true
-                // 레이아웃이 끝난 뒤에야 크기를 알 수 있다
-                map.post { map.zoomToBoundingBox(BoundingBox.fromGeoPoints(geo), false, 80) }
-            }
-            !follow && !fitted[0] && geo.size == 1 -> map.controller.setCenter(geo.first())
-        }
-        map.invalidate()
+    AndroidView(factory = { mapView }, modifier = modifier, update = {
+        state.lastPoints = points
+        state.draw(points, lineColor, follow)
     })
 }
 
-private fun marker(map: MapView, point: GeoPoint, title: String) = Marker(map).apply {
-    position = point
-    this.title = title
-    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+private class MapState {
+    var map: NaverMap? = null
+    var lastPoints: List<TrackPoint> = emptyList()
+    private var fitted = false
+    private val overlays = mutableListOf<Overlay>()
+
+    fun draw(points: List<TrackPoint>, lineColor: Int, follow: Boolean) {
+        val map = map ?: return
+        overlays.forEach { it.map = null }
+        overlays.clear()
+        val geo = points.map { LatLng(it.lat, it.lng) }
+        // 일시정지 구간끼리는 선을 잇지 않도록 segment별로 따로 그린다 (PathOverlay는 2점 이상 필요)
+        points.indices.groupBy { points[it].segment }.values.filter { it.size >= 2 }.forEach { idx ->
+            overlays += PathOverlay(idx.map { geo[it] }).apply {
+                color = lineColor
+                outlineWidth = 0
+                width = 12
+            }
+        }
+        if (geo.isNotEmpty()) {
+            overlays += Marker(geo.first()).apply { captionText = "출발" }
+            if (!follow && geo.size > 1) overlays += Marker(geo.last()).apply { captionText = "도착" }
+        }
+        overlays.forEach { it.map = map }
+
+        when {
+            follow && geo.isNotEmpty() -> map.moveCamera(CameraUpdate.scrollTo(geo.last()))
+            !follow && !fitted && geo.size > 1 -> {
+                fitted = true
+                map.moveCamera(CameraUpdate.fitBounds(LatLngBounds.from(geo), 80))
+            }
+            !follow && !fitted && geo.size == 1 -> map.moveCamera(CameraUpdate.scrollTo(geo.first()))
+        }
+    }
 }

@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -17,6 +18,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        // 네이버 지도 Client ID는 local.properties의 naverMapClientId (커밋 금지). 없으면 지도만 인증 실패로 안 뜬다.
+        val localProps = Properties().apply { rootProject.file("local.properties").takeIf { it.exists() }?.reader()?.use(::load) }
+        manifestPlaceholders["naverMapClientId"] = localProps.getProperty("naverMapClientId", "")
     }
 
     buildTypes {
@@ -54,7 +58,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.play.services.location)
-    implementation(libs.osmdroid)
+    implementation(libs.naver.map)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 }

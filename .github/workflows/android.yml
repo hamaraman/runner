@@ -23,6 +23,9 @@ jobs:
       - name: Unit tests (core logic)
         run: ./gradlew :core:test --no-daemon
 
+      - name: Naver Map client ID
+        run: echo "naverMapClientId=${{ secrets.NAVER_MAP_CLIENT_ID }}" >> local.properties
+
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --no-daemon
 

@@ -2,6 +2,9 @@
 
 package com.runner.app.ui.run
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +18,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -42,6 +46,7 @@ import com.runner.app.ui.millisToLocal
 import com.runner.app.ui.rememberContainer
 import com.runner.app.ui.shareText
 import com.runner.core.Geo
+import com.runner.core.Gpx
 import com.runner.core.Pace
 import com.runner.core.RunRecord
 
@@ -52,6 +57,14 @@ fun RunDetailScreen(id: String, onBack: () -> Unit) {
     val runs by container.runs.state.collectAsStateWithLifecycle()
     val run = runs.firstOrNull { it.id == id }
     var confirmDelete by remember { mutableStateOf(false) }
+    // 시스템 저장 창으로 GPX 파일을 내보낸다 → 지도 앱에서 불러오기
+    val saveGpx = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri ->
+        if (uri == null || run == null) return@rememberLauncherForActivityResult
+        val ok = runCatching {
+            context.contentResolver.openOutputStream(uri)!!.use { it.write(Gpx.from(run).toByteArray()) }
+        }.isSuccess
+        Toast.makeText(context, if (ok) "경로를 저장했어요" else "저장에 실패했어요", Toast.LENGTH_SHORT).show()
+    }
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -60,6 +73,11 @@ fun RunDetailScreen(id: String, onBack: () -> Unit) {
             navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로") } },
             actions = {
                 if (run != null) {
+                    if (run.points.isNotEmpty()) {
+                        IconButton(onClick = { saveGpx.launch("run-${millisToLocal(run.startedAtMs).toLocalDate()}.gpx") }) {
+                            Icon(Icons.Filled.Place, "경로 저장(GPX)")
+                        }
+                    }
                     IconButton(onClick = {
                         shareText(
                             context,

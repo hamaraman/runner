@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
 import com.runner.app.ui.SplitBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -121,7 +120,7 @@ private fun RunDetailBody(run: RunRecord) {
     val splits = remember(run.id) { Geo.splitsSec(run.points) }
     LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            RouteMap(run.points, Modifier.fillMaxWidth().height(320.dp).clip(MaterialTheme.shapes.large))
+            RouteMap(run.points, Modifier.fillMaxWidth().height(320.dp))
         }
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {

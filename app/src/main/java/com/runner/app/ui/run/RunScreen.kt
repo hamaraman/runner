@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -67,6 +68,7 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
     val runs by container.runs.state.collectAsStateWithLifecycle()
     val plan by container.plan.state.collectAsStateWithLifecycle()
     var confirmStop by remember { mutableStateOf(false) }
+    var showCoachSettings by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
@@ -126,7 +128,20 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
                     Spacer(Modifier.height(12.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         StatBlock("시간", Pace.formatDuration(tracking.elapsedSec))
+                        if (active) StatBlock("현재 페이스", Pace.format(tracking.currentPaceSec))
                         StatBlock("평균 페이스", Pace.format(Pace.secPerKm(tracking.distanceM, tracking.elapsedSec)))
+                    }
+                    tracking.targetPace?.let { target ->
+                        Spacer(Modifier.height(8.dp))
+                        Text("목표 페이스 ${Pace.formatRange(target)}", style = MaterialTheme.typography.labelLarge)
+                    }
+                    if (tracking.autoPaused) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "자동 일시정지됨 · 다시 달리면 이어서 기록해요",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                        )
                     }
                     if (tracking.waitingForGps) {
                         Spacer(Modifier.height(8.dp))
@@ -136,6 +151,13 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
                         RouteMap(tracking.points, Modifier.fillMaxWidth().height(260.dp).padding(top = 12.dp), follow = true)
                     }
                     Spacer(Modifier.height(16.dp))
+                    if (!active) {
+                        TextButton(onClick = { showCoachSettings = true }) {
+                            Icon(Icons.Filled.RecordVoiceOver, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text("코칭 설정 (음성 안내·페이스 알림·자동 일시정지)")
+                        }
+                    }
                     ControlButtons(
                         status = tracking.status,
                         onStart = { startRun() },
@@ -160,6 +182,17 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
             items(runs, key = { it.id }) { run -> RunRow(run) { onOpenRun(run.id) } }
             item { Spacer(Modifier.height(16.dp)) }
         }
+    }
+
+    if (showCoachSettings) {
+        CoachSettingsDialog(
+            initial = container.coach.value,
+            onDismiss = { showCoachSettings = false },
+            onSave = { updated ->
+                container.coach.update { updated }
+                showCoachSettings = false
+            },
+        )
     }
 
     if (confirmStop) {

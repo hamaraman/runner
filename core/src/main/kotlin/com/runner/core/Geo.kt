@@ -64,4 +64,25 @@ object Geo {
         }
         return splits
     }
+
+    /**
+     * 최근 [windowMs] 동안의 현재 페이스(초/km). 마지막 구간(segment) 안에서만 계산하고,
+     * 데이터가 너무 적으면(20초·30m 미만) null.
+     */
+    fun recentPaceSec(points: List<TrackPoint>, windowMs: Long = 60_000): Double? {
+        if (points.size < 2) return null
+        val last = points.last()
+        var dist = 0.0
+        var firstTime = last.timeMs
+        for (i in points.lastIndex downTo 1) {
+            val a = points[i - 1]
+            val b = points[i]
+            if (a.segment != last.segment || last.timeMs - a.timeMs > windowMs) break
+            dist += distanceM(a, b)
+            firstTime = a.timeMs
+        }
+        val sec = (last.timeMs - firstTime) / 1000.0
+        if (sec < 20 || dist < 30) return null
+        return sec / (dist / 1000.0)
+    }
 }

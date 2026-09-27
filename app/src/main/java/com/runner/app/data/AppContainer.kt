@@ -1,6 +1,7 @@
 package com.runner.app.data
 
 import android.content.Context
+import com.runner.core.CoachSettings
 import com.runner.core.Crew
 import com.runner.core.CrewEvent
 import com.runner.core.Race
@@ -27,6 +28,7 @@ class AppContainer(context: Context) {
     val races = JsonStore(File(dir, "races.json"), ListSerializer(Race.serializer()), emptyList(), scope)
     val crews = JsonStore(File(dir, "crews.json"), ListSerializer(Crew.serializer()), emptyList(), scope)
     val events = JsonStore(File(dir, "events.json"), ListSerializer(CrewEvent.serializer()), emptyList(), scope)
+    val coach = JsonStore(File(dir, "coach.json"), CoachSettings.serializer(), CoachSettings(), scope)
 
     /** 러닝을 저장하고, 오늘 훈련표에 있던 운동은 완료 처리한다. */
     fun saveRun(run: RunRecord) {

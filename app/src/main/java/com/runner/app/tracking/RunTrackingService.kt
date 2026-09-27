@@ -26,7 +26,14 @@ import com.google.android.gms.location.Priority
 import com.runner.app.R
 import com.runner.app.RunnerApp
 import com.runner.app.ui.MainActivity
+import com.runner.core.AutoPauseDetector
+import com.runner.core.CoachSettings
 import com.runner.core.Geo
+import com.runner.core.IntRange2
+import com.runner.core.KmSplitTracker
+import com.runner.core.PaceAlertPolicy
+import com.runner.core.TargetPace
+import com.runner.core.VoiceText
 import com.runner.core.Pace
 import com.runner.core.RunRecord
 import com.runner.core.TrackPoint
@@ -49,6 +56,7 @@ class RunTrackingService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var locationClient: FusedLocationProviderClient
+    private lateinit var voice: VoiceCoach
     private var timerJob: Job? = null
 
     /** 일시정지 전까지 누적된 움직인 시간 */
@@ -57,15 +65,24 @@ class RunTrackingService : Service() {
     private var segment = 0
     private var lastAccepted: TrackPoint? = null
 
+    // 코칭
+    private var settings = CoachSettings()
+    private var splitTracker = KmSplitTracker()
+    private var paceAlert: PaceAlertPolicy? = null
+    private val autoPause = AutoPauseDetector()
+
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             result.locations.forEach(::onLocation)
         }
     }
 
+    private val container get() = (application as RunnerApp).container
+
     override fun onCreate() {
         super.onCreate()
         locationClient = LocationServices.getFusedLocationProviderClient(this)
+        voice = VoiceCoach(this)
         createChannel()
     }
 
@@ -90,37 +107,63 @@ class RunTrackingService : Service() {
         segment = 0
         lastAccepted = null
         segmentStartedAt = SystemClock.elapsedRealtime()
+
+        settings = container.coach.value
+        splitTracker = KmSplitTracker()
+        autoPause.reset()
+        val target = chooseTarget()
+        paceAlert = target?.takeIf { settings.paceAlert }?.let { PaceAlertPolicy(it) }
+
         TrackingState.mutable.value = TrackingSnapshot(
             status = TrackingStatus.RUNNING,
             startedAtMs = System.currentTimeMillis(),
             waitingForGps = true,
+            targetPace = target,
         )
+        say(VoiceText.start(target))
         requestUpdates()
         startTimer()
     }
 
+    /** 오늘 훈련표의 운동에 맞는 목표 페이스, 없으면 수동 설정값. */
+    private fun chooseTarget(): IntRange2? {
+        val plan = container.plan.value
+        val today = container.todayWorkout(plan)
+        return TargetPace.forWorkout(today?.type, plan?.zones) ?: TargetPace.manual(settings.manualTargetPaceSec)
+    }
+
     private fun pause() {
-        if (TrackingState.state.value.status != TrackingStatus.RUNNING) return
-        accumulatedMs += SystemClock.elapsedRealtime() - segmentStartedAt
+        val snap = TrackingState.state.value
+        if (snap.status != TrackingStatus.RUNNING) return
+        if (!snap.autoPaused) accumulatedMs += SystemClock.elapsedRealtime() - segmentStartedAt
+        autoPause.reset()
         locationClient.removeLocationUpdates(callback)
         timerJob?.cancel()
-        TrackingState.mutable.update { it.copy(status = TrackingStatus.PAUSED, elapsedSec = accumulatedMs / 1000) }
+        TrackingState.mutable.update {
+            it.copy(status = TrackingStatus.PAUSED, autoPaused = false, elapsedSec = accumulatedMs / 1000)
+        }
+        say("일시정지.")
         updateNotification()
     }
 
     private fun resume() {
         if (TrackingState.state.value.status != TrackingStatus.PAUSED) return
-        segment++
-        lastAccepted = null
-        segmentStartedAt = SystemClock.elapsedRealtime()
+        startNewSegment()
         TrackingState.mutable.update { it.copy(status = TrackingStatus.RUNNING) }
+        say("다시 시작합니다.")
         requestUpdates()
         startTimer()
     }
 
+    private fun startNewSegment() {
+        segment++
+        lastAccepted = null
+        segmentStartedAt = SystemClock.elapsedRealtime()
+    }
+
     private fun finish(save: Boolean) {
         val snap = TrackingState.state.value
-        if (snap.status == TrackingStatus.RUNNING) {
+        if (snap.status == TrackingStatus.RUNNING && !snap.autoPaused) {
             accumulatedMs += SystemClock.elapsedRealtime() - segmentStartedAt
         }
         locationClient.removeLocationUpdates(callback)
@@ -129,7 +172,7 @@ class RunTrackingService : Service() {
         val durationSec = accumulatedMs / 1000
         // 너무 짧은 기록(1분 미만·50m 미만)은 저장하지 않음
         if (save && snap.status != TrackingStatus.IDLE && (durationSec >= 60 || snap.distanceM >= 50)) {
-            (application as RunnerApp).container.saveRun(
+            container.saveRun(
                 RunRecord(
                     id = UUID.randomUUID().toString(),
                     startedAtMs = snap.startedAtMs,
@@ -138,10 +181,15 @@ class RunTrackingService : Service() {
                     points = snap.points,
                 ),
             )
+            say(VoiceText.finish(snap.distanceM, durationSec, Pace.secPerKm(snap.distanceM, durationSec)))
         }
         TrackingState.mutable.value = TrackingSnapshot()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        // 종료 요약 음성이 끊기지 않도록 잠시 뒤에 서비스를 끝낸다(그 사이 새 러닝을 시작했으면 유지)
+        scope.launch {
+            delay(if (settings.voiceEnabled && save) 12_000L else 0L)
+            if (TrackingState.state.value.status == TrackingStatus.IDLE) stopSelf()
+        }
     }
 
     @SuppressLint("MissingPermission") // 권한은 UI에서 시작 전에 확인한다
@@ -159,6 +207,8 @@ class RunTrackingService : Service() {
 
     private fun onLocation(location: Location) {
         if (TrackingState.state.value.status != TrackingStatus.RUNNING) return
+        if (settings.autoPause && location.accuracy <= 25f && handleAutoPause(location)) return
+
         val point = TrackPoint(
             lat = location.latitude,
             lng = location.longitude,
@@ -172,19 +222,70 @@ class RunTrackingService : Service() {
         TrackingState.mutable.update {
             it.copy(points = it.points + point, distanceM = it.distanceM + added, waitingForGps = false)
         }
+        announceSplits()
     }
+
+    /** 자동 일시정지 처리. 멈춤 상태라 이 위치를 기록하지 말아야 하면 true. */
+    private fun handleAutoPause(location: Location): Boolean {
+        val nowElapsed = location.elapsedRealtimeNanos / 1_000_000
+        val change = autoPause.feed(location.latitude, location.longitude, nowElapsed)
+        when (change?.event) {
+            AutoPauseDetector.Event.PAUSED -> {
+                // 멈춘 것으로 판단되는 시점까지만 운동 시간으로 친다
+                accumulatedMs += (change.atMs - segmentStartedAt).coerceAtLeast(0)
+                TrackingState.mutable.update { it.copy(autoPaused = true, elapsedSec = accumulatedMs / 1000) }
+                say("자동 일시정지.")
+                updateNotification()
+            }
+            AutoPauseDetector.Event.RESUMED -> {
+                startNewSegment()
+                TrackingState.mutable.update { it.copy(autoPaused = false) }
+                say("다시 출발합니다.")
+                updateNotification()
+            }
+            null -> Unit
+        }
+        return autoPause.paused
+    }
+
+    private fun announceSplits() {
+        if (!settings.kmAnnounce) return
+        val s = TrackingState.state.value
+        val elapsed = currentElapsedMs() / 1000
+        splitTracker.update(s.distanceM, elapsed).forEach { split ->
+            say(VoiceText.km(split, Pace.secPerKm(s.distanceM, elapsed)))
+        }
+    }
+
+    private fun currentElapsedMs(): Long =
+        if (TrackingState.state.value.autoPaused) accumulatedMs
+        else accumulatedMs + SystemClock.elapsedRealtime() - segmentStartedAt
 
     private fun startTimer() {
         timerJob?.cancel()
         timerJob = scope.launch {
             var tick = 0
             while (isActive) {
-                val elapsed = accumulatedMs + SystemClock.elapsedRealtime() - segmentStartedAt
-                TrackingState.mutable.update { it.copy(elapsedSec = elapsed / 1000) }
-                if (tick++ % 5 == 0) updateNotification()
+                val elapsedMs = currentElapsedMs()
+                val snap = TrackingState.state.value
+                val current = if (snap.autoPaused) null else Geo.recentPaceSec(snap.points)
+                TrackingState.mutable.update { it.copy(elapsedSec = elapsedMs / 1000, currentPaceSec = current) }
+                if (tick % 10 == 0 && !snap.autoPaused) checkPace(current, elapsedMs)
+                if (tick % 5 == 0) updateNotification()
+                tick++
                 delay(1_000L)
             }
         }
+    }
+
+    private fun checkPace(current: Double?, elapsedMs: Long) {
+        val policy = paceAlert ?: return
+        val target = TrackingState.state.value.targetPace ?: return
+        policy.check(current, elapsedMs)?.let { say(VoiceText.paceAlert(it, target)) }
+    }
+
+    private fun say(text: String) {
+        if (settings.voiceEnabled) voice.speak(text)
     }
 
     private fun goForeground() {
@@ -202,7 +303,11 @@ class RunTrackingService : Service() {
             this, 0, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val title = if (s.status == TrackingStatus.PAUSED) "일시정지됨" else "러닝 중"
+        val title = when {
+            s.status == TrackingStatus.PAUSED -> "일시정지됨"
+            s.autoPaused -> "자동 일시정지"
+            else -> "러닝 중"
+        }
         val text = "%.2f km · %s · %s/km".format(
             s.distanceM / 1000, Pace.formatDuration(s.elapsedSec), Pace.format(Pace.secPerKm(s.distanceM, s.elapsedSec)),
         )
@@ -224,6 +329,7 @@ class RunTrackingService : Service() {
 
     override fun onDestroy() {
         locationClient.removeLocationUpdates(callback)
+        voice.shutdown()
         scope.cancel()
         super.onDestroy()
     }

@@ -116,3 +116,18 @@ data class PaceZones(
 /** 직렬화 가능한 정수 범위(느린 쪽이 max). */
 @Serializable
 data class IntRange2(val min: Int, val max: Int)
+
+/**
+ * 러닝 기록 하나를 훈련표에 반영한다.
+ * 같은 날 운동이 남아 있으면 그걸, 없으면 같은 주의 가장 이른 미완료 운동(대회 제외)을 완료 처리한다.
+ */
+fun TrainingPlan.markRun(runDay: Long): TrainingPlan {
+    fun open(w: Workout) = w.type != WorkoutType.REST && !w.done
+    val week = weeks.firstOrNull { w -> w.workouts.isNotEmpty() && runDay in w.workouts.minOf { it.dateEpochDay }..w.workouts.maxOf { it.dateEpochDay } } ?: return this
+    val target = week.workouts.firstOrNull { open(it) && it.dateEpochDay == runDay }
+        ?: week.workouts.filter { open(it) && it.type != WorkoutType.RACE }.minByOrNull { it.dateEpochDay }
+        ?: return this
+    return copy(weeks = weeks.map { w ->
+        if (w !== week) w else w.copy(workouts = w.workouts.map { if (it === target) it.copy(done = true) else it })
+    })
+}

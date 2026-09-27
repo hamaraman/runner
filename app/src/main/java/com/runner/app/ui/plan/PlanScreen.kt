@@ -177,7 +177,7 @@ private fun PlanForm(raceId: String?, hasExisting: Boolean, onCancel: () -> Unit
                             zones = zones,
                         ),
                     )
-                    container.plan.update { newPlan }
+                    container.setPlan(newPlan)
                     onCreated()
                 } catch (e: IllegalArgumentException) {
                     Toast.makeText(context, e.message ?: "입력값을 확인해주세요", Toast.LENGTH_SHORT).show()

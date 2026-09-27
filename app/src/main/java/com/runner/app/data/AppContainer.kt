@@ -37,6 +37,19 @@ class AppContainer(context: Context) {
         setWorkoutDone(day.toEpochDay(), true, onlyIfRun = true)
     }
 
+    /** 새 훈련 계획을 저장하면서, 이미 달린 날의 운동은 바로 완료 처리한다. */
+    fun setPlan(p: TrainingPlan) {
+        val zone = ZoneId.systemDefault()
+        val runDays = runs.value.map { Instant.ofEpochMilli(it.startedAtMs).atZone(zone).toLocalDate().toEpochDay() }.toSet()
+        plan.update {
+            p.copy(weeks = p.weeks.map { w ->
+                w.copy(workouts = w.workouts.map { wo ->
+                    if (wo.type != WorkoutType.REST && wo.dateEpochDay in runDays) wo.copy(done = true) else wo
+                })
+            })
+        }
+    }
+
     fun deleteRun(id: String) = runs.update { list -> list.filterNot { it.id == id } }
 
     fun setWorkoutDone(epochDay: Long, done: Boolean, onlyIfRun: Boolean = false) {

@@ -2,6 +2,21 @@
 
 package com.runner.app.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import com.runner.app.ui.theme.Eyebrow
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -88,18 +103,65 @@ fun StatBlock(label: String, value: String, modifier: Modifier = Modifier, big: 
             style = if (big) MaterialTheme.typography.displaySmall else MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
         )
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
 fun InfoCard(text: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f), MaterialTheme.shapes.medium)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(Icons.Outlined.Info, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.secondary)
+        Spacer(Modifier.width(10.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** 목록·요약에 쓰는 기본 카드 (그림자 없이 한 단계 올라간 면). */
+@Composable
+fun SoftCard(modifier: Modifier = Modifier, highlight: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-    ) {
-        Text(text, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        border = if (highlight) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+        content = content,
+    )
+}
+
+/** 상태 배지: 기록 중, 신청 완료, 참석 등. */
+@Composable
+fun StatusPill(text: String, container: Color, content: Color, modifier: Modifier = Modifier) {
+    Surface(modifier, color = container, contentColor = content, shape = CircleShape) {
+        Text(text, Modifier.padding(horizontal = 10.dp, vertical = 3.dp), style = Eyebrow)
     }
+}
+
+/** 카드 왼쪽의 날짜/디데이 타일. */
+@Composable
+fun DateTile(top: String, main: String, modifier: Modifier = Modifier, accent: Boolean = false) {
+    val bg = if (accent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest
+    val fg = if (accent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    Column(
+        modifier.width(60.dp).background(bg, MaterialTheme.shapes.small).padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(top, style = Eyebrow, color = fg.copy(alpha = 0.8f))
+        Text(main, style = MaterialTheme.typography.titleLarge, color = fg, maxLines = 1)
+    }
+}
+
+@Composable
+fun EmptyState(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium).padding(20.dp),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
 }
 
 @Composable

@@ -1,5 +1,7 @@
 package com.runner.app.ui.run
 
+import com.runner.app.ui.StatusPill
+import com.runner.app.ui.EmptyState
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -7,6 +9,18 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import com.runner.app.ui.WeekBars
+import com.runner.app.ui.plan.color
+import com.runner.app.ui.theme.Eyebrow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -107,24 +121,39 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
         item { Spacer(Modifier.height(8.dp)) }
         if (!active && today != null) {
             item {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-                    Column(Modifier.padding(16.dp).fillMaxWidth()) {
-                        Text("오늘의 훈련", style = MaterialTheme.typography.labelLarge)
-                        Text(
-                            if (today.type == WorkoutType.REST) "휴식일" else "${today.type.label} ${today.label()}" +
-                                if (today.done) "  ✓ 완료" else "",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(today.description, style = MaterialTheme.typography.bodyMedium)
+                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(12.dp).background(today.type.color(), CircleShape))
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("오늘의 훈련", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                if (today.type == WorkoutType.REST) "휴식일" else "${today.type.label} ${today.label()}",
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                            Text(today.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (today.done) StatusPill("완료", MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
                     }
                 }
             }
         }
         item {
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    StatBlock("킬로미터", "%.2f".format(tracking.distanceM / 1000), big = true)
+            val heroColor = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = heroColor)) {
+                Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    when {
+                        tracking.autoPaused -> StatusPill("자동 일시정지", MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurface)
+                        tracking.status == TrackingStatus.PAUSED -> StatusPill("일시정지", MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurface)
+                        tracking.status == TrackingStatus.RUNNING -> StatusPill("● 기록 중", MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary)
+                        else -> Text("준비", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("%.2f".format(tracking.distanceM / 1000), style = MaterialTheme.typography.displayLarge)
+                        Text(" km", Modifier.padding(bottom = 10.dp), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(Modifier.height(12.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         StatBlock("시간", Pace.formatDuration(tracking.elapsedSec))
@@ -133,29 +162,25 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
                     }
                     tracking.targetPace?.let { target ->
                         Spacer(Modifier.height(8.dp))
-                        Text("목표 페이스 ${Pace.formatRange(target)}", style = MaterialTheme.typography.labelLarge)
+                        Text("목표 페이스 ${Pace.formatRange(target)}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (tracking.autoPaused) {
                         Spacer(Modifier.height(8.dp))
-                        Text(
-                            "자동 일시정지됨 · 다시 달리면 이어서 기록해요",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                        )
+                        Text("다시 달리면 이어서 기록해요", style = MaterialTheme.typography.bodySmall)
                     }
                     if (tracking.waitingForGps) {
                         Spacer(Modifier.height(8.dp))
                         Text("GPS 신호를 찾는 중… 하늘이 트인 곳에서 더 빨라요", style = MaterialTheme.typography.bodySmall)
                     }
                     if (active) {
-                        RouteMap(tracking.points, Modifier.fillMaxWidth().height(260.dp).padding(top = 12.dp), follow = true)
+                        RouteMap(tracking.points, Modifier.padding(top = 16.dp).fillMaxWidth().height(260.dp).clip(MaterialTheme.shapes.medium), follow = true)
                     }
                     Spacer(Modifier.height(16.dp))
                     if (!active) {
                         TextButton(onClick = { showCoachSettings = true }) {
                             Icon(Icons.Filled.RecordVoiceOver, null)
                             Spacer(Modifier.width(6.dp))
-                            Text("코칭 설정 (음성 안내·페이스 알림·자동 일시정지)")
+                            Text("코칭 설정")
                         }
                     }
                     ControlButtons(
@@ -177,7 +202,7 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
                 }
             }
             if (runs.isEmpty()) {
-                item { Text("아직 기록이 없어요. 첫 러닝을 시작해보세요!", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                item { EmptyState("아직 기록이 없어요. 첫 러닝을 시작해보세요!") }
             }
             items(runs, key = { it.id }) { run -> RunRow(run) { onOpenRun(run.id) } }
             item { Spacer(Modifier.height(16.dp)) }
@@ -257,34 +282,50 @@ private fun ControlButtons(
 
 @Composable
 private fun WeeklySummary(runs: List<RunRecord>) {
-    val monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val today = LocalDate.now()
+    val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     val thisWeek = runs.filter { !millisToLocal(it.startedAtMs).toLocalDate().isBefore(monday) }
     val km = thisWeek.sumOf { it.distanceM } / 1000
     val sec = thisWeek.sumOf { it.durationSec }
-    Card(Modifier.fillMaxWidth()) {
+    val perDay = (0..6).map { d ->
+        thisWeek.filter { millisToLocal(it.startedAtMs).toLocalDate() == monday.plusDays(d.toLong()) }.sumOf { it.distanceM } / 1000
+    }
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
         Column(Modifier.padding(16.dp)) {
-            Text("이번 주", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                StatBlock("거리", "%.1f km".format(km))
-                StatBlock("횟수", "${thisWeek.size}회")
-                StatBlock("시간", Pace.formatDuration(sec))
+            Text("이번 주", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("%.1f".format(km), style = MaterialTheme.typography.displaySmall)
+                Text(" km", Modifier.padding(bottom = 6.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("${thisWeek.size}회", style = MaterialTheme.typography.titleMedium)
+                    Text(Pace.formatDuration(sec), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
+            Spacer(Modifier.height(12.dp))
+            WeekBars(listOf("월", "화", "수", "목", "금", "토", "일"), perDay, today.dayOfWeek.value - 1)
         }
     }
 }
 
 @Composable
 private fun RunRow(run: RunRecord, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+    Card(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.AutoMirrored.Filled.DirectionsRun, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(millisToLocal(run.startedAtMs).format(DateTimeFmt), style = MaterialTheme.typography.labelMedium)
-                Text("%.2f km".format(run.distanceM / 1000), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("%.2f km".format(run.distanceM / 1000), style = MaterialTheme.typography.titleLarge)
+                Text(millisToLocal(run.startedAtMs).format(DateTimeFmt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(Pace.formatDuration(run.durationSec))
-                Text("${Pace.format(run.paceSecPerKm)}/km", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${Pace.format(run.paceSecPerKm)} /km", style = MaterialTheme.typography.titleMedium)
+                Text(Pace.formatDuration(run.durationSec), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

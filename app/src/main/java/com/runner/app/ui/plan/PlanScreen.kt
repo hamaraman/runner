@@ -2,6 +2,14 @@
 
 package com.runner.app.ui.plan
 
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.style.TextDecoration
+import com.runner.app.ui.SoftCard
+import com.runner.app.ui.StatusPill
+import com.runner.app.ui.theme.Eyebrow
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -68,6 +76,7 @@ import java.time.LocalDate
 
 fun Workout.label(): String = if (distanceKm > 0) "%.1f km".format(distanceKm) else ""
 
+@Composable
 fun WorkoutType.color(): Color = when (this) {
     WorkoutType.REST -> WorkoutColors.rest
     WorkoutType.EASY -> WorkoutColors.easy
@@ -114,7 +123,8 @@ private fun PlanForm(raceId: String?, hasExisting: Boolean, onCancel: () -> Unit
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("훈련 계획 만들기", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("훈련 계획 만들기", style = MaterialTheme.typography.headlineSmall)
+        Text("목표 대회와 지금 체력에 맞춰 주차별 훈련표를 만들어요.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         SectionTitle("목표 거리")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -205,45 +215,70 @@ private fun PlanView(plan: TrainingPlan, onNewPlan: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-                Column(Modifier.padding(16.dp).fillMaxWidth()) {
-                    val raceDate = epochDay(plan.raceDateEpochDay)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            plan.raceName.ifBlank { "${plan.goal.label} 대회" },
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(dDay(raceDate), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+            val raceDate = epochDay(plan.raceDateEpochDay)
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                Column(Modifier.padding(20.dp).fillMaxWidth()) {
+                    Text("목표 대회", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Column(Modifier.weight(1f)) {
+                            Text(plan.raceName.ifBlank { "${plan.goal.label} 대회" }, style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                "${raceDate.format(FullDateFmt)} · ${plan.goal.label}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Text(dDay(raceDate), style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
                     }
-                    Text("${raceDate.format(FullDateFmt)} · ${plan.goal.label} · ${plan.weeks.size}주 계획")
-                    Text("지금까지 완료 $doneRuns / $totalRuns 회", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(16.dp))
+                    Row {
+                        Text("완료한 훈련", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Text("$doneRuns / ${totalRuns}회 · ${plan.weeks.size}주 계획", style = MaterialTheme.typography.labelMedium)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = { if (totalRuns == 0) 0f else doneRuns.toFloat() / totalRuns },
+                        modifier = Modifier.fillMaxWidth().height(8.dp),
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        strokeCap = StrokeCap.Round,
+                        gapSize = 2.dp,
+                        drawStopIndicator = {},
+                    )
                     plan.zones?.let { z ->
+                        Spacer(Modifier.height(16.dp))
+                        Text("목표 페이스 (추정, /km)", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(8.dp))
-                        Text("목표 페이스(추정)", style = MaterialTheme.typography.labelLarge)
-                        Text(
-                            "대회 ${Pace.format(z.race.toDouble())} · 이지 ${Pace.formatRange(z.easy)}\n" +
-                                "템포 ${Pace.formatRange(z.tempo)} · 인터벌 ${Pace.formatRange(z.interval)}",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ZoneTile("대회", Pace.format(z.race.toDouble()), WorkoutType.RACE, Modifier.weight(1f))
+                            ZoneTile("이지", Pace.formatRange(z.easy), WorkoutType.EASY, Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ZoneTile("템포", Pace.formatRange(z.tempo), WorkoutType.TEMPO, Modifier.weight(1f))
+                            ZoneTile("인터벌", Pace.formatRange(z.interval), WorkoutType.INTERVAL, Modifier.weight(1f))
+                        }
                     }
+                    Spacer(Modifier.height(8.dp))
                     Row {
                         TextButton(onClick = onNewPlan) { Text("새 계획") }
-                        TextButton(onClick = { confirmReset = true }) { Text("계획 삭제") }
+                        TextButton(onClick = { confirmReset = true }) { Text("계획 삭제", color = MaterialTheme.colorScheme.error) }
                     }
                 }
             }
         }
         plan.weeks.forEach { week ->
             item(key = "w${week.index}") {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(
-                            "${week.index + 1}주차 · ${week.phase} · ${week.totalKm} km",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
+                val isCurrent = week.workouts.any { it.dateEpochDay == today }
+                SoftCard(highlight = isCurrent) {
+                    Column(Modifier.padding(vertical = 12.dp)) {
+                        Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${week.index + 1}주차", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.width(8.dp))
+                            StatusPill(week.phase, MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.weight(1f))
+                            Text("${week.totalKm} km", style = MaterialTheme.typography.titleMedium)
+                        }
+                        Spacer(Modifier.height(4.dp))
                         week.workouts.forEach { w ->
                             WorkoutRow(w, isToday = w.dateEpochDay == today) { checked ->
                                 container.setWorkoutDone(w.dateEpochDay, checked)
@@ -271,26 +306,49 @@ private fun PlanView(plan: TrainingPlan, onNewPlan: () -> Unit) {
 }
 
 @Composable
-private fun WorkoutRow(w: Workout, isToday: Boolean, onToggle: (Boolean) -> Unit) {
-    val bg = if (isToday) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent
+private fun ZoneTile(label: String, value: String, type: WorkoutType, modifier: Modifier = Modifier) {
     Row(
-        Modifier.fillMaxWidth().background(bg).padding(vertical = 6.dp, horizontal = 4.dp),
+        modifier.background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.small).padding(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(10.dp).background(w.type.color(), CircleShape))
+        Box(Modifier.size(8.dp).background(type.color(), CircleShape))
         Spacer(Modifier.width(8.dp))
+        Column {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"))
+        }
+    }
+}
+
+@Composable
+private fun WorkoutRow(w: Workout, isToday: Boolean, onToggle: (Boolean) -> Unit) {
+    val rest = w.type == WorkoutType.REST
+    val bg = if (isToday) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp).background(bg, MaterialTheme.shapes.small)
+            .height(IntrinsicSize.Min).padding(vertical = 8.dp, horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // 종류 색 막대 — 색만으로 구분하지 않도록 옆에 항상 종류 이름을 쓴다
+        Box(Modifier.width(4.dp).fillMaxHeight().background(w.type.color(), CircleShape))
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 "${epochDay(w.dateEpochDay).format(DateFmt)}${if (isToday) " · 오늘" else ""}",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text("${w.type.label} ${w.label()}", fontWeight = FontWeight.SemiBold)
-            if (w.type != WorkoutType.REST) {
-                Text(w.description, style = MaterialTheme.typography.bodySmall)
+            Text(
+                "${w.type.label} ${w.label()}",
+                style = MaterialTheme.typography.titleSmall,
+                color = if (rest) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                textDecoration = if (w.done) TextDecoration.LineThrough else null,
+            )
+            if (!rest) {
+                Text(w.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (w.type != WorkoutType.REST) {
+        if (!rest) {
             Checkbox(checked = w.done, onCheckedChange = onToggle)
         }
     }

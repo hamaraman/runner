@@ -2,6 +2,14 @@
 
 package com.runner.app.ui.race
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import com.runner.app.ui.DateTile
+import com.runner.app.ui.EmptyState
+import com.runner.app.ui.SoftCard
+import com.runner.app.ui.StatusPill
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -81,13 +89,14 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
             }
             item {
                 OutlinedButton(onClick = { openUrl(context, RACE_CALENDAR_URL) }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.Link, null)
-                    Text("  전국 마라톤 일정 보기 (마라톤온라인)")
+                    Icon(Icons.Filled.Link, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("전국 마라톤 일정 보기 (마라톤온라인)")
                 }
             }
             item { SectionTitle("다가오는 대회") }
             if (upcoming.isEmpty()) {
-                item { Text("등록된 대회가 없어요.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                item { EmptyState("등록된 대회가 없어요. 오른쪽 아래 버튼으로 추가해보세요.") }
             }
             items(upcoming, key = { it.id }) { r ->
                 RaceCard(
@@ -141,25 +150,53 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
 private fun RaceCard(r: Race, onMakePlan: (() -> Unit)?, onToggleRegistered: (() -> Unit)?, onDelete: () -> Unit) {
     val context = LocalContext.current
     val date = epochDay(r.dateEpochDay)
-    Card(Modifier.fillMaxWidth()) {
+    val past = onToggleRegistered == null
+    val dd = dDay(date)
+    SoftCard {
         Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(r.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text(dDay(date), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-            }
-            Text("${date.format(FullDateFmt)} · ${r.distance.label}" + if (r.location.isNotBlank()) " · ${r.location}" else "")
-            r.goalTimeSec?.let { Text("목표 기록 ${Pace.formatDuration(it)}", style = MaterialTheme.typography.bodySmall) }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.Center) {
-                if (onToggleRegistered != null) {
-                    FilterChip(
-                        selected = r.registered,
-                        onClick = onToggleRegistered,
-                        label = { Text(if (r.registered) "신청 완료" else "신청 전") },
+            Row {
+                DateTile(if (dd.startsWith("D+")) "완료" else "D-DAY", dd.removePrefix("D-").removePrefix("D+").let { if (it == "DAY") "오늘" else it }, accent = !past)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(r.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Filled.Delete, "삭제", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Text(
+                        date.format(FullDateFmt) + if (r.location.isNotBlank()) " · ${r.location}" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        StatusPill(r.distance.label, MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurface)
+                        if (!past) {
+                            if (r.registered) {
+                                StatusPill("신청 완료", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                            } else {
+                                StatusPill("신청 전", MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        r.goalTimeSec?.let {
+                            Text("목표 ${Pace.formatDuration(it)}", style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"))
+                        }
+                    }
                 }
-                if (onMakePlan != null) AssistChip(onClick = onMakePlan, label = { Text("훈련 계획 만들기") })
-                if (r.url.isNotBlank()) AssistChip(onClick = { openUrl(context, r.url) }, label = { Text("대회 페이지") })
-                IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "삭제") }
+            }
+            if (!past || r.url.isNotBlank()) {
+                FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (onToggleRegistered != null) {
+                        FilterChip(
+                            selected = r.registered,
+                            onClick = onToggleRegistered,
+                            label = { Text(if (r.registered) "신청함" else "신청 표시") },
+                        )
+                    }
+                    if (onMakePlan != null) AssistChip(onClick = onMakePlan, label = { Text("훈련 계획 만들기") })
+                    if (r.url.isNotBlank()) AssistChip(onClick = { openUrl(context, r.url) }, label = { Text("대회 페이지") })
+                }
             }
         }
     }

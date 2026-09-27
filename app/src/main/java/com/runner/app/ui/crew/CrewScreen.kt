@@ -2,6 +2,17 @@
 
 package com.runner.app.ui.crew
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.FilledTonalButton
+import com.runner.app.ui.DateTile
+import com.runner.app.ui.EmptyState
+import com.runner.app.ui.SoftCard
+import com.runner.app.ui.StatusPill
+import com.runner.app.ui.theme.Eyebrow
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -80,7 +91,7 @@ fun CrewScreen() {
             }
             item { SectionTitle("다가오는 모임") }
             if (upcoming.isEmpty()) {
-                item { Text("예정된 모임이 없어요.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                item { EmptyState("예정된 모임이 없어요. 크루에서 번개런을 만들어보세요.") }
             }
             items(upcoming, key = { it.id }) { e ->
                 EventCard(
@@ -95,22 +106,40 @@ fun CrewScreen() {
             }
             item { SectionTitle("내 크루") }
             if (crews.isEmpty()) {
-                item { Text("아래 버튼으로 첫 크루를 만들어보세요.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                item { EmptyState("아래 버튼으로 첫 크루를 만들어보세요.") }
             }
             items(crews, key = { it.id }) { c ->
-                Card(Modifier.fillMaxWidth()) {
+                SoftCard {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(c.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text(c.area, style = MaterialTheme.typography.bodySmall)
+                            Box(
+                                Modifier.size(44.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(c.name.take(1), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
-                            IconButton(onClick = { deleting = c }) { Icon(Icons.Filled.Delete, "크루 삭제") }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(c.name, style = MaterialTheme.typography.titleMedium)
+                                val count = events.count { it.crewId == c.id }
+                                Text(
+                                    listOf(c.area, "모임 ${count}개").filter { it.isNotBlank() }.joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            IconButton(onClick = { deleting = c }) {
+                                Icon(Icons.Filled.Delete, "크루 삭제", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
-                        if (c.description.isNotBlank()) Text(c.description, style = MaterialTheme.typography.bodyMedium)
-                        val count = events.count { it.crewId == c.id }
-                        Text("모임 ${count}개", style = MaterialTheme.typography.labelMedium)
-                        OutlinedButton(onClick = { eventFor = c }, modifier = Modifier.padding(top = 8.dp)) { Text("번개/정기런 만들기") }
+                        if (c.description.isNotBlank()) {
+                            Text(c.description, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodyMedium)
+                        }
+                        FilledTonalButton(onClick = { eventFor = c }, modifier = Modifier.padding(top = 12.dp).fillMaxWidth()) {
+                            Icon(Icons.Filled.Add, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("번개/정기런 만들기")
+                        }
                     }
                 }
             }
@@ -165,24 +194,36 @@ private fun inviteText(e: CrewEvent, crewName: String): String = buildString {
 
 @Composable
 private fun EventCard(e: CrewEvent, crewName: String, onToggle: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
-            Text(crewName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            Text(e.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(millisToLocal(e.dateTimeMs).format(DateTimeFmt))
-            Text(
-                "${e.place} · %.1fkm".format(e.distanceKm) +
-                    (e.paceSecPerKm?.let { " · ${Pace.format(it.toDouble())}/km" } ?: ""),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (e.attending) {
-                    OutlinedButton(onClick = onToggle) { Text("참석 취소") }
-                } else {
-                    Button(onClick = onToggle) { Text("참석하기") }
+    val at = millisToLocal(e.dateTimeMs)
+    SoftCard {
+        Row(Modifier.padding(16.dp)) {
+            DateTile("${at.monthValue}월", "${at.dayOfMonth}", accent = e.attending)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(crewName, style = Eyebrow, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                    if (e.attending) StatusPill("참석", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
                 }
-                IconButton(onClick = onShare) { Icon(Icons.Filled.Share, "초대 공유") }
-                IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "모임 삭제") }
+                Text(e.title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "${at.format(DateTimeFmt)} · ${e.place}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "%.1f km".format(e.distanceKm) + (e.paceSecPerKm?.let { " · ${Pace.format(it.toDouble())} /km" } ?: ""),
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (e.attending) {
+                        OutlinedButton(onClick = onToggle) { Text("참석 취소") }
+                    } else {
+                        Button(onClick = onToggle) { Text("참석하기") }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = onShare) { Icon(Icons.Filled.Share, "초대 공유") }
+                    IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "모임 삭제", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
             }
         }
     }

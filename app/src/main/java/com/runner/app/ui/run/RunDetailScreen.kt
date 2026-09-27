@@ -14,7 +14,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import com.runner.app.ui.SplitBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -23,7 +27,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -116,28 +119,35 @@ fun RunDetailScreen(id: String, onBack: () -> Unit) {
 @Composable
 private fun RunDetailBody(run: RunRecord) {
     val splits = remember(run.id) { Geo.splitsSec(run.points) }
-    LazyColumn(Modifier.padding(horizontal = 16.dp)) {
+    LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Card(Modifier.fillMaxWidth()) {
-                RouteMap(run.points, Modifier.fillMaxWidth().height(320.dp))
-            }
+            RouteMap(run.points, Modifier.fillMaxWidth().height(320.dp).clip(MaterialTheme.shapes.large))
         }
         item {
-            Row(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                StatBlock("거리", "%.2f km".format(run.distanceM / 1000))
-                StatBlock("시간", Pace.formatDuration(run.durationSec))
-                StatBlock("평균 페이스", Pace.format(run.paceSecPerKm))
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("%.2f".format(run.distanceM / 1000), style = MaterialTheme.typography.displayMedium)
+                        Text(" km", Modifier.padding(bottom = 8.dp), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        StatBlock("시간", Pace.formatDuration(run.durationSec))
+                        StatBlock("평균 페이스", Pace.format(run.paceSecPerKm))
+                    }
+                }
             }
         }
         if (splits.isNotEmpty()) {
-            item { SectionTitle("구간 기록") }
-            itemsIndexed(splits) { i, sec ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("${i + 1} km")
-                    Text("${Pace.format(sec.toDouble())}/km", style = MaterialTheme.typography.bodyLarge)
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                        SectionTitle("구간 기록 (km당 페이스)")
+                        SplitBars(splits)
+                    }
                 }
-                HorizontalDivider()
             }
         }
+        item { Spacer(Modifier.height(8.dp)) }
     }
 }

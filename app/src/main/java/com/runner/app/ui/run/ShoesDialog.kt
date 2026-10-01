@@ -65,7 +65,7 @@ fun ShoesDialog(onDismiss: () -> Unit) {
                         }
                         TextButton(onClick = {
                             container.shoes.update { list -> list.map { if (it.id == shoe.id) it.copy(retired = !it.retired) else it } }
-                        }) { Text(if (shoe.retired) "복귀" else "은퇴") }
+                        }) { Text(if (shoe.retired) "꺼내기" else "보관") }
                         IconButton(onClick = { container.deleteShoe(shoe.id) }) { Icon(Icons.Filled.Delete, "삭제") }
                     }
                 }

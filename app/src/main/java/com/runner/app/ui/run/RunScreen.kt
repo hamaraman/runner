@@ -83,6 +83,7 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
     val plan by container.plan.state.collectAsStateWithLifecycle()
     var confirmStop by remember { mutableStateOf(false) }
     var showCoachSettings by remember { mutableStateOf(false) }
+    var showShoes by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
@@ -177,10 +178,13 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
                     }
                     Spacer(Modifier.height(16.dp))
                     if (!active) {
-                        TextButton(onClick = { showCoachSettings = true }) {
-                            Icon(Icons.Filled.RecordVoiceOver, null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("코칭 설정")
+                        Row {
+                            TextButton(onClick = { showCoachSettings = true }) {
+                                Icon(Icons.Filled.RecordVoiceOver, null)
+                                Spacer(Modifier.width(6.dp))
+                                Text("코칭 설정")
+                            }
+                            TextButton(onClick = { showShoes = true }) { Text("러닝화") }
                         }
                     }
                     ControlButtons(
@@ -219,6 +223,8 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
             },
         )
     }
+
+    if (showShoes) ShoesDialog(onDismiss = { showShoes = false })
 
     if (confirmStop) {
         AlertDialog(

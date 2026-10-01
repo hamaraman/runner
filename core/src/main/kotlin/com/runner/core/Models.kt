@@ -22,10 +22,24 @@ data class RunRecord(
     val distanceM: Double,
     val points: List<TrackPoint> = emptyList(),
     val memo: String = "",
+    val shoeId: String? = null,
 ) {
     /** km당 초. 거리가 너무 짧으면 null. */
     val paceSecPerKm: Double? get() = Pace.secPerKm(distanceM, durationSec)
 }
+
+/** 러닝화. 목록 맨 앞의 현역 신발이 새 러닝에 자동으로 붙는다. */
+@Serializable
+data class Shoe(
+    val id: String,
+    val name: String,
+    /** 앱 사용 전에 이미 달린 거리. */
+    val baseKm: Double = 0.0,
+    val retired: Boolean = false,
+)
+
+/** 신발의 누적 마일리지(km). */
+fun Shoe.totalKm(runs: List<RunRecord>): Double = baseKm + runs.filter { it.shoeId == id }.sumOf { it.distanceM } / 1000
 
 enum class RaceDistance(val label: String, val km: Double) {
     FIVE_K("5K", 5.0),

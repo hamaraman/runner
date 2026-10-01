@@ -134,6 +134,7 @@ private fun RunDetailBody(run: RunRecord) {
                         StatBlock("시간", Pace.formatDuration(run.durationSec))
                         StatBlock("평균 페이스", Pace.format(run.paceSecPerKm))
                     }
+                    RunShoeRow(run.id, run.shoeId, Modifier.padding(top = 8.dp))
                 }
             }
         }

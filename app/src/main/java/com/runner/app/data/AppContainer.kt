@@ -6,6 +6,7 @@ import com.runner.core.Crew
 import com.runner.core.CrewEvent
 import com.runner.core.Race
 import com.runner.core.RunRecord
+import com.runner.core.Shoe
 import com.runner.core.TrainingPlan
 import com.runner.core.Workout
 import com.runner.core.WorkoutType
@@ -30,10 +31,12 @@ class AppContainer(context: Context) {
     val crews = JsonStore(File(dir, "crews.json"), ListSerializer(Crew.serializer()), emptyList(), scope)
     val events = JsonStore(File(dir, "events.json"), ListSerializer(CrewEvent.serializer()), emptyList(), scope)
     val coach = JsonStore(File(dir, "coach.json"), CoachSettings.serializer(), CoachSettings(), scope)
+    val shoes = JsonStore(File(dir, "shoes.json"), ListSerializer(Shoe.serializer()), emptyList(), scope)
 
     /** 러닝을 저장하고 훈련표에 반영한다(같은 날 없으면 같은 주 미완료 운동). */
     fun saveRun(run: RunRecord) {
-        runs.update { listOf(run) + it }
+        val shoeId = run.shoeId ?: shoes.value.firstOrNull { !it.retired }?.id
+        runs.update { listOf(run.copy(shoeId = shoeId)) + it }
         val day = Instant.ofEpochMilli(run.startedAtMs).atZone(ZoneId.systemDefault()).toLocalDate()
         plan.update { it?.markRun(day.toEpochDay()) }
     }
@@ -43,6 +46,17 @@ class AppContainer(context: Context) {
         val zone = ZoneId.systemDefault()
         val runDays = runs.value.map { Instant.ofEpochMilli(it.startedAtMs).atZone(zone).toLocalDate().toEpochDay() }
         plan.update { runDays.sorted().fold(p) { acc, day -> acc.markRun(day) } }
+    }
+
+    fun setRunShoe(runId: String, shoeId: String?) =
+        runs.update { list -> list.map { if (it.id == runId) it.copy(shoeId = shoeId) else it } }
+
+    /** 이 신발을 맨 앞(=기본 신발)으로 옮긴다. */
+    fun selectShoe(id: String) = shoes.update { list -> list.sortedBy { it.id != id } }
+
+    fun deleteShoe(id: String) {
+        shoes.update { list -> list.filterNot { it.id == id } }
+        runs.update { list -> list.map { if (it.shoeId == id) it.copy(shoeId = null) else it } }
     }
 
     fun deleteRun(id: String) = runs.update { list -> list.filterNot { it.id == id } }

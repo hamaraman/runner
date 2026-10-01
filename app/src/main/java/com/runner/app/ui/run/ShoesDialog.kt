@@ -34,7 +34,7 @@ import com.runner.core.totalKm
 import java.util.UUID
 
 /** 보통 600~800km에서 교체를 권한다. */
-private const val REPLACE_KM = 700.0
+internal const val REPLACE_KM = 700.0
 
 /** 러닝화 관리: 맨 위 현역 신발이 새 러닝에 자동으로 붙는다. */
 @Composable

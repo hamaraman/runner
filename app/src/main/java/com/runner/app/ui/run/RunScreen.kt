@@ -72,6 +72,10 @@ import com.runner.core.RunRecord
 import com.runner.core.Shoe
 import com.runner.core.totalKm
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.runner.core.WorkoutType
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -182,11 +186,15 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
                     }
                     Spacer(Modifier.height(16.dp))
                     if (!active) {
-                        TextButton(onClick = { showCoachSettings = true }) {
-                            Icon(Icons.Filled.RecordVoiceOver, null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("코칭 설정")
+                        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Tile(Modifier.weight(1f).fillMaxHeight(), onClick = { showCoachSettings = true }) {
+                                Icon(Icons.Filled.RecordVoiceOver, null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.height(6.dp))
+                                Text("코칭 설정", style = MaterialTheme.typography.titleMedium)
+                            }
+                            ShoeTile(shoes.firstOrNull { !it.retired }, runs, Modifier.weight(1f).fillMaxHeight()) { showShoes = true }
                         }
+                        Spacer(Modifier.height(12.dp))
                     }
                     ControlButtons(
                         status = tracking.status,
@@ -200,7 +208,6 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
         }
         if (!active) {
             item { WeeklySummary(runs) }
-            item { ShoeCard(shoes.firstOrNull { !it.retired }, runs) { showShoes = true } }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     SectionTitle("기록")
@@ -316,41 +323,38 @@ private fun WeeklySummary(runs: List<RunRecord>) {
     }
 }
 
+/** 히어로 카드 안의 작은 버튼 칸. */
+@Composable
+private fun Tile(modifier: Modifier, onClick: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    Surface(modifier.clip(MaterialTheme.shapes.small).clickable(onClick = onClick), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, content = content)
+    }
+}
+
 /** 지금 신는 러닝화의 누적 거리와 교체 시점까지의 진행도. */
 @Composable
-private fun ShoeCard(shoe: Shoe?, runs: List<RunRecord>, onClick: () -> Unit) {
-    Card(
-        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Column(Modifier.padding(16.dp)) {
+private fun ShoeTile(shoe: Shoe?, runs: List<RunRecord>, modifier: Modifier, onClick: () -> Unit) {
+    Tile(modifier, onClick) {
+        if (shoe == null) {
             Text("러닝화", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (shoe == null) {
-                Text("러닝화를 등록하면 마일리지를 자동으로 쌓아줘요", style = MaterialTheme.typography.titleMedium)
-                return@Column
-            }
-            val km = shoe.totalKm(runs)
-            val worn = km >= REPLACE_KM
-            Text(shoe.name, style = MaterialTheme.typography.titleMedium)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text("%.1f".format(km), style = MaterialTheme.typography.displaySmall, color = if (worn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
-                Text(" / ${REPLACE_KM.toInt()} km", Modifier.padding(bottom = 6.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Spacer(Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { (km / REPLACE_KM).toFloat().coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth().height(8.dp),
-                color = if (worn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                drawStopIndicator = {},
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                if (worn) "교체할 때가 됐어요" else "교체까지 %.0f km 남았어요".format(REPLACE_KM - km),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (worn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text("등록하기", style = MaterialTheme.typography.titleMedium)
+            return@Tile
         }
+        val km = shoe.totalKm(runs)
+        val accent = if (km >= REPLACE_KM) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+        Text(shoe.name, style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text("%.1f".format(km), style = MaterialTheme.typography.titleLarge, color = if (km >= REPLACE_KM) accent else MaterialTheme.colorScheme.onSurface)
+            Text(" km", Modifier.padding(bottom = 2.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(6.dp))
+        LinearProgressIndicator(
+            progress = { (km / REPLACE_KM).toFloat().coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth().height(6.dp),
+            color = accent,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            drawStopIndicator = {},
+        )
     }
 }
 

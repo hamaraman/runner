@@ -82,7 +82,7 @@ import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
 @Composable
-fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
+fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivacyOptions: (() -> Unit)? = null) {
     val context = LocalContext.current
     val container = rememberContainer()
     val tracking by TrackingState.state.collectAsStateWithLifecycle()
@@ -218,6 +218,13 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit) {
                 item { EmptyState("아직 기록이 없어요. 첫 러닝을 시작해보세요!") }
             }
             items(runs, key = { it.id }) { run -> RunRow(run) { onOpenRun(run.id) } }
+            if (onPrivacyOptions != null) {
+                item {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        TextButton(onClick = onPrivacyOptions) { Text("개인정보 설정") }
+                    }
+                }
+            }
             item { Spacer(Modifier.height(16.dp)) }
         }
     }

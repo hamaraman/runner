@@ -29,6 +29,7 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.MobileAds
+import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
 import com.runner.app.R
@@ -50,18 +51,34 @@ import com.runner.app.ui.theme.RunnerTheme
 
 class MainActivity : ComponentActivity() {
     private val adsReady = mutableStateOf(false)
+    private val privacyOptionsRequired = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { RunnerTheme { RunnerNav(adsReady.value) } }
+        setContent {
+            RunnerTheme {
+                RunnerNav(
+                    adsReady = adsReady.value,
+                    onPrivacyOptions = if (privacyOptionsRequired.value) {
+                        { UserMessagingPlatform.showPrivacyOptionsForm(this) {} }
+                    } else null,
+                )
+            }
+        }
 
         // UMP: 필요한 지역(EEA·영국 등)에서만 동의 폼이 뜬다. 동의 결과와 상관없이 실패해도 앱은 그대로 동작.
         val consent = UserMessagingPlatform.getConsentInformation(this)
         consent.requestConsentInfoUpdate(
             this,
             ConsentRequestParameters.Builder().build(),
-            { UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { startAds() } },
+            {
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) {
+                    privacyOptionsRequired.value = consent.privacyOptionsRequirementStatus ==
+                        ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
+                    startAds()
+                }
+            },
             { startAds() },
         )
         startAds() // 이전 세션에서 이미 동의했으면 바로 시작
@@ -84,7 +101,7 @@ private val tabs = listOf(
 )
 
 @Composable
-private fun RunnerNav(adsReady: Boolean) {
+private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val current = entry?.destination?.route.orEmpty()
@@ -108,7 +125,7 @@ private fun RunnerNav(adsReady: Boolean) {
     ) { padding ->
         NavHost(nav, startDestination = "run", modifier = Modifier.padding(padding)) {
             composable("run") {
-                RunScreen(onOpenRun = { id -> nav.navigate("run/$id") }, onOpenAllRoutes = { nav.navigate("routes") })
+                RunScreen(onOpenRun = { id -> nav.navigate("run/$id") }, onOpenAllRoutes = { nav.navigate("routes") }, onPrivacyOptions = onPrivacyOptions)
             }
             composable("routes") { AllRoutesScreen(onBack = { nav.popBackStack() }) }
             composable("run/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {

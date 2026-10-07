@@ -18,8 +18,8 @@ android {
         applicationId = "com.runner.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         // 네이버 지도 Client ID는 local.properties의 naverMapClientId (커밋 금지). 없으면 지도만 인증 실패로 안 뜬다.
         manifestPlaceholders["naverMapClientId"] = localProps.getProperty("naverMapClientId", "")
         // AdMob App ID는 local.properties의 admobAppId. 없으면 구글 공식 테스트 ID로 동작한다.

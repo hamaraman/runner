@@ -19,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -27,6 +28,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.MobileAds
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
 import com.runner.app.R
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -45,10 +49,28 @@ import com.runner.app.ui.run.RunScreen
 import com.runner.app.ui.theme.RunnerTheme
 
 class MainActivity : ComponentActivity() {
+    private val adsReady = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { RunnerTheme { RunnerNav() } }
+        setContent { RunnerTheme { RunnerNav(adsReady.value) } }
+
+        // UMP: 필요한 지역(EEA·영국 등)에서만 동의 폼이 뜬다. 동의 결과와 상관없이 실패해도 앱은 그대로 동작.
+        val consent = UserMessagingPlatform.getConsentInformation(this)
+        consent.requestConsentInfoUpdate(
+            this,
+            ConsentRequestParameters.Builder().build(),
+            { UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { startAds() } },
+            { startAds() },
+        )
+        startAds() // 이전 세션에서 이미 동의했으면 바로 시작
+    }
+
+    private fun startAds() {
+        if (adsReady.value || !UserMessagingPlatform.getConsentInformation(this).canRequestAds()) return
+        MobileAds.initialize(this)
+        adsReady.value = true
     }
 }
 
@@ -62,7 +84,7 @@ private val tabs = listOf(
 )
 
 @Composable
-private fun RunnerNav() {
+private fun RunnerNav(adsReady: Boolean) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val current = entry?.destination?.route.orEmpty()
@@ -70,7 +92,7 @@ private fun RunnerNav() {
     Scaffold(
         bottomBar = {
             Column {
-                if (current == "run") BannerAd()
+                if (adsReady && current == "run") BannerAd()
                 NavigationBar {
                     tabs.forEach { tab ->
                         NavigationBarItem(

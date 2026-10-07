@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.play.services.location)
     implementation(libs.naver.map)
     implementation(libs.play.services.ads)
+    implementation(libs.ump)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 }

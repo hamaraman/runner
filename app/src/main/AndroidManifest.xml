@@ -32,6 +32,10 @@
             android:name="com.naver.maps.map.NCP_KEY_ID"
             android:value="${naverMapClientId}" />
 
+            <meta-data
+                android:name="com.google.android.gms.ads.APPLICATION_ID"
+                android:value="${admobAppId}" />
+
         <service
             android:name=".tracking.RunTrackingService"
             android:exported="false"

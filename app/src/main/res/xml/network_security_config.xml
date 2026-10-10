@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 마라톤온라인 일정표가 http만 지원해서 이 도메인만 평문 허용 -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">roadrun.co.kr</domain>
+    </domain-config>
+</network-security-config>

@@ -38,6 +38,13 @@ object RaceCalendar {
     private val placeRe = Regex("""<div align="center">\s*([^<]*?)\s*</div>""")
     private val homeRe = Regex("""<a href="(https?://[^"]+)" target="_new">""")
 
+    /** 네트워크로 받아 파싱한다. 블로킹이라 IO 스레드에서 부를 것. 사이트가 EUC-KR이다. */
+    fun fetch(today: LocalDate = LocalDate.now()): List<CalendarRace> {
+        val conn = java.net.URL(URL).openConnection().apply { connectTimeout = 10_000; readTimeout = 15_000 }
+        val html = conn.getInputStream().use { it.readBytes() }.toString(charset("EUC-KR"))
+        return parse(html, today.year).filter { !it.date.isBefore(today) }
+    }
+
     fun parse(html: String, startYear: Int): List<CalendarRace> {
         var year = startYear
         var lastMonth = 0

@@ -62,14 +62,20 @@ import com.runner.app.ui.dDay
 import com.runner.app.ui.epochDay
 import com.runner.app.ui.openUrl
 import com.runner.app.ui.rememberContainer
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.produceState
+import com.runner.core.CalendarRace
 import com.runner.core.Pace
+import com.runner.core.RaceCalendar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.runner.core.Race
 import com.runner.core.RaceDistance
 import java.time.LocalDate
 import java.util.UUID
-
-/** 전국 마라톤 대회 일정을 모아 보여주는 외부 사이트 */
-private const val RACE_CALENDAR_URL = "http://www.roadrun.co.kr/schedule/list.php"
 
 @Composable
 fun RaceScreen(onMakePlan: (String) -> Unit) {
@@ -77,6 +83,8 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
     val container = rememberContainer()
     val races by container.races.state.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
+    var picking by remember { mutableStateOf(false) }
+    var prefill by remember { mutableStateOf<CalendarRace?>(null) }
     var deleting by remember { mutableStateOf<Race?>(null) }
 
     val today = LocalDate.now().toEpochDay()
@@ -88,10 +96,10 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
                 InfoCard("나가고 싶은 대회를 등록하면 D-day를 보여주고, 그 날짜에 맞춘 훈련 계획을 바로 만들 수 있어요. 일정과 접수 기간은 반드시 주최 측 공지로 확인하세요.")
             }
             item {
-                OutlinedButton(onClick = { openUrl(context, RACE_CALENDAR_URL) }, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Filled.Link, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("전국 마라톤 일정 보기 (마라톤온라인)")
+                    Text("전국 마라톤 일정에서 고르기")
                 }
             }
             item { SectionTitle("다가오는 대회") }
@@ -124,10 +132,18 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
         )
     }
 
+    if (picking) {
+        CalendarPicker(onDismiss = { picking = false }) {
+            prefill = it
+            picking = false
+            adding = true
+        }
+    }
     if (adding) {
-        RaceDialog(onDismiss = { adding = false }) { race ->
+        RaceDialog(prefill, onDismiss = { adding = false; prefill = null }) { race ->
             container.races.update { it + race }
             adding = false
+            prefill = null
             Toast.makeText(context, "대회를 추가했어요", Toast.LENGTH_SHORT).show()
         }
     }
@@ -203,13 +219,13 @@ private fun RaceCard(r: Race, onMakePlan: (() -> Unit)?, onToggleRegistered: (()
 }
 
 @Composable
-private fun RaceDialog(onDismiss: () -> Unit, onSave: (Race) -> Unit) {
+private fun RaceDialog(initial: CalendarRace?, onDismiss: () -> Unit, onSave: (Race) -> Unit) {
     val context = LocalContext.current
-    var name by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf(LocalDate.now().plusWeeks(8)) }
-    var distance by remember { mutableStateOf(RaceDistance.TEN_K) }
-    var location by remember { mutableStateOf("") }
-    var url by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(initial?.name.orEmpty()) }
+    var date by remember { mutableStateOf(initial?.date ?: LocalDate.now().plusWeeks(8)) }
+    var distance by remember { mutableStateOf(initial?.distance ?: RaceDistance.TEN_K) }
+    var location by remember { mutableStateOf(initial?.place.orEmpty()) }
+    var url by remember { mutableStateOf(initial?.homepage.orEmpty()) }
     var registered by remember { mutableStateOf(false) }
     var goal by remember { mutableStateOf("") }
 
@@ -255,5 +271,51 @@ private fun RaceDialog(onDismiss: () -> Unit, onSave: (Race) -> Unit) {
             }) { Text("추가") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("취소") } },
+    )
+}
+
+/** 마라톤온라인 일정표를 앱 안에서 보여주고 고르게 한다. 못 불러오면 사이트로 보낸다. */
+@Composable
+private fun CalendarPicker(onDismiss: () -> Unit, onPick: (CalendarRace) -> Unit) {
+    val context = LocalContext.current
+    val result by produceState<Result<List<CalendarRace>>?>(null) {
+        value = withContext(Dispatchers.IO) { runCatching { RaceCalendar.fetch() } }
+    }
+    var query by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("전국 마라톤 일정") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val races = result?.getOrNull()
+                when {
+                    result == null -> Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
+                    races.isNullOrEmpty() -> {
+                        Text("일정을 불러오지 못했어요. 사이트에서 직접 확인해주세요.")
+                        OutlinedButton(onClick = { openUrl(context, RaceCalendar.URL) }) { Text("마라톤온라인 열기") }
+                    }
+                    else -> {
+                        TextInput("대회 이름·장소 검색", query, { query = it })
+                        val shown = races.filter { query.isBlank() || query in it.name || query in it.place }
+                        LazyColumn(Modifier.heightIn(max = 400.dp)) {
+                            items(shown) { r ->
+                                Column(Modifier.fillMaxWidth().clickable { onPick(r) }.padding(vertical = 10.dp)) {
+                                    Text(r.name, style = MaterialTheme.typography.titleSmall)
+                                    Text(
+                                        "${r.date.format(FullDateFmt)} · ${r.place}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(r.courses, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                HorizontalDivider()
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("닫기") } },
     )
 }

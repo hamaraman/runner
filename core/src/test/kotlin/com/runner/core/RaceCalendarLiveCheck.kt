@@ -1,8 +1,5 @@
 package com.runner.core
 
-import java.net.URL
-import java.nio.charset.Charset
-import java.time.LocalDate
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -11,8 +8,7 @@ import org.junit.Test
 class RaceCalendarLiveCheck {
     @Test fun parsesLiveSchedule() {
         assumeTrue(System.getenv("LIVE") == "1")
-        val html = URL(RaceCalendar.URL).readBytes().toString(Charset.forName("EUC-KR"))
-        val races = RaceCalendar.parse(html, LocalDate.now().year)
+        val races = RaceCalendar.fetch()
         println("parsed ${races.size} races")
         races.take(5).forEach { println(it) }
         assertTrue("no races parsed", races.isNotEmpty())

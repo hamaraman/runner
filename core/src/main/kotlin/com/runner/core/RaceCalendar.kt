@@ -11,13 +11,16 @@ data class CalendarRace(
     val place: String,
     val homepage: String,
 ) {
-    /** 코스 문자열에서 가장 긴 공식 종목을 고른다(없으면 10K). */
-    val distance: RaceDistance get() = when {
-        "풀" in courses -> RaceDistance.FULL
-        "하프" in courses -> RaceDistance.HALF
-        "10" in courses -> RaceDistance.TEN_K
-        "5" in courses -> RaceDistance.FIVE_K
-        else -> RaceDistance.TEN_K
+    /** 코스 중 가장 긴 거리를 가까운 종목으로 묶는다(트레일·울트라 포함, 없으면 10K). */
+    val distance: RaceDistance get() {
+        val km = Regex("""(\d+(?:\.\d+)?)\s*k""", RegexOption.IGNORE_CASE).findAll(courses)
+            .map { it.groupValues[1].toDouble() }.maxOrNull()
+        return when {
+            "풀" in courses || (km ?: 0.0) >= 30 -> RaceDistance.FULL
+            "하프" in courses || (km ?: 0.0) >= 15 -> RaceDistance.HALF
+            km == null || km >= 8 -> RaceDistance.TEN_K
+            else -> RaceDistance.FIVE_K
+        }
     }
 }
 

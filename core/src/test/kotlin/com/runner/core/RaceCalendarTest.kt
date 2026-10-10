@@ -33,4 +33,15 @@ class RaceCalendarTest {
         assertEquals(RaceDistance.FULL, races[0].distance)
         assertEquals(RaceDistance.TEN_K, races[1].distance)
     }
+
+    @Test fun distanceUsesLongestCourse() {
+        fun d(courses: String) = CalendarRace("", "", LocalDate.of(2026, 1, 1), courses, "", "").distance
+        assertEquals(RaceDistance.FULL, d("36K,22K,7K"))
+        assertEquals(RaceDistance.FULL, d("100K,50K"))
+        assertEquals(RaceDistance.HALF, d("22K,7K"))
+        assertEquals(RaceDistance.HALF, d("15km,5km"))
+        assertEquals(RaceDistance.TEN_K, d("10km,4.4km걷기"))
+        assertEquals(RaceDistance.FIVE_K, d("5km,3km"))
+        assertEquals(RaceDistance.TEN_K, d("기타"))
+    }
 }

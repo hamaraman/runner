@@ -64,6 +64,7 @@ class RunTrackingService : Service() {
     private var segmentStartedAt = 0L
     private var segment = 0
     private var lastAccepted: TrackPoint? = null
+    private var runId = ""
 
     // 코칭
     private var settings = CoachSettings()
@@ -104,6 +105,7 @@ class RunTrackingService : Service() {
         goForeground()
         if (TrackingState.state.value.status != TrackingStatus.IDLE) return
         accumulatedMs = 0L
+        runId = UUID.randomUUID().toString()
         segment = 0
         lastAccepted = null
         segmentStartedAt = SystemClock.elapsedRealtime()
@@ -144,6 +146,7 @@ class RunTrackingService : Service() {
         }
         say("일시정지.")
         updateNotification()
+        saveDraft()
     }
 
     private fun resume() {
@@ -168,13 +171,14 @@ class RunTrackingService : Service() {
         }
         locationClient.removeLocationUpdates(callback)
         timerJob?.cancel()
+        container.draft.update { null }
 
         val durationSec = accumulatedMs / 1000
         // 너무 짧은 기록(1분 미만·50m 미만)은 저장하지 않음
         if (save && snap.status != TrackingStatus.IDLE && (durationSec >= 60 || snap.distanceM >= 50)) {
             container.saveRun(
                 RunRecord(
-                    id = UUID.randomUUID().toString(),
+                    id = runId,
                     startedAtMs = snap.startedAtMs,
                     durationSec = durationSec,
                     distanceM = snap.distanceM,
@@ -272,10 +276,18 @@ class RunTrackingService : Service() {
                 TrackingState.mutable.update { it.copy(elapsedSec = elapsedMs / 1000, currentPaceSec = current) }
                 if (tick % 10 == 0 && !snap.autoPaused) checkPace(current, elapsedMs)
                 if (tick % 5 == 0) updateNotification()
+                if (tick % 10 == 9) saveDraft()
                 tick++
                 delay(1_000L)
             }
         }
+    }
+
+    /** 지금까지의 기록을 임시 저장한다. 강제 종료 시 최대 10초 분량만 잃는다. */
+    private fun saveDraft() {
+        val s = TrackingState.state.value
+        val ms = if (s.status == TrackingStatus.RUNNING) currentElapsedMs() else accumulatedMs
+        container.draft.update { RunRecord(runId, s.startedAtMs, ms / 1000, s.distanceM, s.points) }
     }
 
     private fun checkPace(current: Double?, elapsedMs: Long) {

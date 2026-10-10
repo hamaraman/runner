@@ -32,6 +32,8 @@ class AppContainer(context: Context) {
     val events = JsonStore(File(dir, "events.json"), ListSerializer(CrewEvent.serializer()), emptyList(), scope)
     val coach = JsonStore(File(dir, "coach.json"), CoachSettings.serializer(), CoachSettings(), scope)
     val shoes = JsonStore(File(dir, "shoes.json"), ListSerializer(Shoe.serializer()), emptyList(), scope)
+    /** 진행 중인 러닝의 임시 저장본. 앱이 강제 종료돼도 다음 실행 때 살릴 수 있게 한다. */
+    val draft = JsonStore(File(dir, "draft.json"), RunRecord.serializer().nullable, null, scope)
 
     /** 러닝을 저장하고 훈련표에 반영한다(같은 날 없으면 같은 주 미완료 운동). */
     fun saveRun(run: RunRecord) {

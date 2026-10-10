@@ -89,17 +89,18 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivac
     val runs by container.runs.state.collectAsStateWithLifecycle()
     val plan by container.plan.state.collectAsStateWithLifecycle()
     val shoes by container.shoes.state.collectAsStateWithLifecycle()
+    val draft by container.draft.state.collectAsStateWithLifecycle()
     var confirmStop by remember { mutableStateOf(false) }
     var showCoachSettings by remember { mutableStateOf(false) }
     var showShoes by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (granted) {
-            RunTrackingService.send(context, RunTrackingService.ACTION_START)
-        } else {
-            Toast.makeText(context, "러닝 기록에는 위치 권한이 필요해요", Toast.LENGTH_LONG).show()
+        when {
+            result[Manifest.permission.ACCESS_FINE_LOCATION] == true -> RunTrackingService.send(context, RunTrackingService.ACTION_START)
+            // 대략적 위치는 오차가 수백 m라 경로를 기록할 수 없다
+            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true ->
+                Toast.makeText(context, "러닝 기록에는 '정확한 위치'가 필요해요. 설정 > 앱 > 위치에서 켜주세요", Toast.LENGTH_LONG).show()
+            else -> Toast.makeText(context, "러닝 기록에는 위치 권한이 필요해요", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -241,6 +242,28 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivac
     }
 
     if (showShoes) ShoesDialog(onDismiss = { showShoes = false })
+
+    // 러닝 중 앱이 강제 종료돼 남은 임시 기록. 서비스가 돌고 있으면 진행 중인 기록이라 건드리지 않는다.
+    draft?.takeIf { !active }?.let { d ->
+        if (d.durationSec < 60 && d.distanceM < 50) {
+            container.draft.update { null }
+            return@let
+        }
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("중단된 러닝이 있어요") },
+            text = { Text("앱이 종료되기 전까지의 기록(%.2f km · %s)을 저장할까요?".format(d.distanceM / 1000, Pace.formatDuration(d.durationSec))) },
+            confirmButton = {
+                TextButton(onClick = {
+                    container.saveRun(d)
+                    container.draft.update { null }
+                }) { Text("저장") }
+            },
+            dismissButton = {
+                TextButton(onClick = { container.draft.update { null } }) { Text("삭제", color = MaterialTheme.colorScheme.error) }
+            },
+        )
+    }
 
     if (confirmStop) {
         AlertDialog(

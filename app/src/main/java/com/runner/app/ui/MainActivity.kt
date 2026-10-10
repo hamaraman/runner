@@ -109,7 +109,7 @@ private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
     Scaffold(
         bottomBar = {
             Column {
-                if (adsReady) BannerAd()
+                if (adsReady && current != "routes") BannerAd()
                 NavigationBar {
                     tabs.forEach { tab ->
                         NavigationBarItem(

@@ -374,10 +374,19 @@ private fun ShoeTile(shoe: Shoe?, runs: List<RunRecord>, modifier: Modifier, onC
         }
         val km = shoe.totalKm(runs)
         val accent = if (km >= REPLACE_KM) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-        Text(shoe.name, style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text("%.1f".format(km), style = MaterialTheme.typography.titleLarge, color = if (km >= REPLACE_KM) accent else MaterialTheme.colorScheme.onSurface)
-            Text(" km", Modifier.padding(bottom = 2.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val photo = rememberContainer().shoePhoto(shoe)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (photo != null) {
+                ShoePhoto(photo, 40.dp)
+                Spacer(Modifier.width(10.dp))
+            }
+            Column(horizontalAlignment = if (photo != null) Alignment.Start else Alignment.CenterHorizontally) {
+                Text(shoe.name, style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text("%.1f".format(km), style = MaterialTheme.typography.titleLarge, color = if (km >= REPLACE_KM) accent else MaterialTheme.colorScheme.onSurface)
+                    Text(" km", Modifier.padding(bottom = 2.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
         Spacer(Modifier.height(6.dp))
         LinearProgressIndicator(

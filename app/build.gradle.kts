@@ -12,12 +12,12 @@ val localProps = Properties().apply { rootProject.file("local.properties").takeI
 
 android {
     namespace = "com.runner.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "io.github.hamaraman.runner"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 11
         versionName = "0.3.8"
         // 네이버 지도 Client ID는 local.properties의 naverMapClientId (커밋 금지). 없으면 지도만 인증 실패로 안 뜬다.

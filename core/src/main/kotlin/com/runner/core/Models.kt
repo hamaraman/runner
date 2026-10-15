@@ -36,6 +36,8 @@ data class Shoe(
     /** 앱 사용 전에 이미 달린 거리. */
     val baseKm: Double = 0.0,
     val retired: Boolean = false,
+    /** 앱 내부에 복사해 둔 사진 파일 이름. */
+    val photo: String? = null,
 )
 
 /** 신발의 누적 마일리지(km). */

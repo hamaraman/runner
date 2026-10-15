@@ -42,6 +42,38 @@ jobs:
           name: runner-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
+      # 태그 릴리스만 실 광고 ID + 서명 키로 릴리스 빌드. 시크릿이 없으면 서명 안 된 APK 대신 실패시킨다.
+      - name: Build signed release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+          ADMOB_NATIVE_ID: ${{ secrets.ADMOB_NATIVE_ID }}
+        run: |
+          for v in KEYSTORE_BASE64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD ADMOB_APP_ID ADMOB_NATIVE_ID; do
+            [ -n "${!v}" ] || { echo "::error::secret for $v is missing"; exit 1; }
+          done
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "releaseStoreFile=$RUNNER_TEMP/release.jks"
+            echo "releaseStorePassword=$STORE_PASSWORD"
+            echo "releaseKeyAlias=$KEY_ALIAS"
+            echo "releaseKeyPassword=$KEY_PASSWORD"
+            echo "admobAppId=$ADMOB_APP_ID"
+            echo "admobNativeId=$ADMOB_NATIVE_ID"
+          } >> local.properties
+          ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Upload release APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v7
+        with:
+          name: runner-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
@@ -51,15 +83,15 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: runner-debug-apk
+          name: runner-release-apk
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          apk="runner-${GITHUB_REF_NAME#v}-debug.apk"
-          mv app-debug.apk "$apk"
+          apk="runner-${GITHUB_REF_NAME#v}.apk"
+          mv app-release.apk "$apk"
           # 주석 태그(git tag -a)의 메시지를 변경사항으로 쓴다. 가벼운 태그면 비워 둔다.
           sha=$(gh api "repos/$GH_REPO/git/ref/tags/$GITHUB_REF_NAME" --jq 'select(.object.type == "tag") | .object.sha')
           changes=""

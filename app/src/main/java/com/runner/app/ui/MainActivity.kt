@@ -22,13 +22,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
+import android.content.Context
+import android.graphics.Typeface
+import android.text.TextUtils
+import android.view.Gravity
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.ads.AdLoader
 import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdSize
-import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.nativead.NativeAd
+import com.google.android.gms.ads.nativead.NativeAdOptions
+import com.google.android.gms.ads.nativead.NativeAdView
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
@@ -109,7 +126,7 @@ private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
     Scaffold(
         bottomBar = {
             Column {
-                if (adsReady && current != "routes") BannerAd()
+                if (adsReady && current != "routes") NativeAdBar()
                 NavigationBar {
                     tabs.forEach { tab ->
                         NavigationBarItem(
@@ -152,18 +169,74 @@ private fun NavHostController.goTab(route: String) = navigate(route) {
 }
 
 @Composable
-private fun BannerAd() {
-    val unitId = stringResource(R.string.admob_banner_id)
-    val widthDp = LocalConfiguration.current.screenWidthDp
+private fun NativeAdBar() {
+    val ctx = LocalContext.current
+    val unitId = stringResource(R.string.admob_native_id)
+    var ad by remember { mutableStateOf<NativeAd?>(null) }
+    DisposableEffect(unitId) {
+        var disposed = false
+        AdLoader.Builder(ctx, unitId)
+            .forNativeAd { if (disposed) it.destroy() else { ad?.destroy(); ad = it } }
+            .withNativeAdOptions(NativeAdOptions.Builder().setAdChoicesPlacement(NativeAdOptions.ADCHOICES_TOP_RIGHT).build())
+            .build()
+            .loadAd(AdRequest.Builder().build())
+        onDispose { disposed = true; ad?.destroy(); ad = null }
+    }
+    val loaded = ad ?: return // 로드 전·실패 시 자리 차지 안 함
+    val colors = MaterialTheme.colorScheme
+    val fg = colors.onSurface.toArgb()
+    val accent = colors.primary.toArgb()
+    val onAccent = colors.onPrimary.toArgb()
     AndroidView(
         modifier = Modifier.fillMaxWidth(),
-        factory = { ctx ->
-            AdView(ctx).apply {
-                setAdSize(AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(ctx, widthDp))
-                adUnitId = unitId
-                loadAd(AdRequest.Builder().build())
-            }
-        },
-        onRelease = { it.destroy() },
+        factory = { c -> nativeAdView(c, fg, accent, onAccent) },
+        update = { it.bind(loaded) },
     )
+}
+
+// 작은 템플릿: 아이콘 · [광고] 제목 / 본문 · 버튼
+private fun nativeAdView(c: Context, fg: Int, accent: Int, onAccent: Int): NativeAdView {
+    val dp = c.resources.displayMetrics.density
+    fun px(v: Int) = (v * dp).toInt()
+    val icon = ImageView(c).apply { layoutParams = LinearLayout.LayoutParams(px(40), px(40)) }
+    val badge = TextView(c).apply {
+        text = "광고"; textSize = 10f; setTextColor(onAccent); setBackgroundColor(accent)
+        setPadding(px(4), 0, px(4), 0)
+    }
+    val headline = TextView(c).apply {
+        textSize = 14f; setTextColor(fg); setTypeface(typeface, Typeface.BOLD)
+        maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(px(6), 0, 0, 0)
+    }
+    val body = TextView(c).apply {
+        textSize = 12f; setTextColor(fg); alpha = 0.7f
+        maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+    }
+    val cta = Button(c).apply {
+        textSize = 12f; setTextColor(onAccent); setBackgroundColor(accent); isAllCaps = false
+        minHeight = 0; minimumHeight = 0; setPadding(px(12), px(6), px(12), px(6))
+    }
+    val titleRow = LinearLayout(c).apply { gravity = Gravity.CENTER_VERTICAL; addView(badge); addView(headline) }
+    val texts = LinearLayout(c).apply {
+        orientation = LinearLayout.VERTICAL
+        layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = px(10); marginEnd = px(10) }
+        addView(titleRow); addView(body)
+    }
+    val row = LinearLayout(c).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(px(12), px(8), px(12), px(8))
+        layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+        addView(icon); addView(texts); addView(cta)
+    }
+    return NativeAdView(c).apply {
+        addView(row)
+        iconView = icon; headlineView = headline; bodyView = body; callToActionView = cta
+    }
+}
+
+private fun NativeAdView.bind(ad: NativeAd) {
+    (headlineView as TextView).text = ad.headline
+    (bodyView as TextView).apply { text = ad.body; visibility = if (ad.body == null) android.view.View.GONE else android.view.View.VISIBLE }
+    (callToActionView as Button).apply { text = ad.callToAction; visibility = if (ad.callToAction == null) android.view.View.GONE else android.view.View.VISIBLE }
+    (iconView as ImageView).apply { setImageDrawable(ad.icon?.drawable); visibility = if (ad.icon == null) android.view.View.GONE else android.view.View.VISIBLE }
+    setNativeAd(ad)
 }

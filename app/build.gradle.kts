@@ -24,7 +24,7 @@ android {
         manifestPlaceholders["naverMapClientId"] = localProps.getProperty("naverMapClientId", "")
         // AdMob App ID는 local.properties의 admobAppId. 없으면 구글 공식 테스트 ID로 동작한다.
         manifestPlaceholders["admobAppId"] = localProps.getProperty("admobAppId", "ca-app-pub-3940256099942544~3347511713")
-        resValue("string", "admob_banner_id", "ca-app-pub-3940256099942544/9214589741")
+        resValue("string", "admob_native_id", "ca-app-pub-3940256099942544/2247696110")
     }
 
     // 서명 키는 local.properties의 releaseStoreFile 등 (커밋 금지). 없으면 unsigned로 빌드된다.
@@ -42,8 +42,8 @@ android {
             signingConfig = releaseSigning
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            // 실 배너 ID는 릴리스에서만 (local.properties의 admobBannerId). 디버그는 테스트 광고 — 내 광고 클릭으로 계정 정지 방지.
-            localProps.getProperty("admobBannerId")?.let { resValue("string", "admob_banner_id", it) }
+            // 실 네이티브 광고 ID는 릴리스에서만 (local.properties의 admobNativeId). 디버그는 테스트 광고 — 내 광고 클릭으로 계정 정지 방지.
+            localProps.getProperty("admobNativeId")?.let { resValue("string", "admob_native_id", it) }
         }
     }
     compileOptions {

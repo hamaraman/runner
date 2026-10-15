@@ -15,7 +15,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.runner.app"
+        applicationId = "io.github.hamaraman.runner"
         minSdk = 26
         targetSdk = 35
         versionCode = 11

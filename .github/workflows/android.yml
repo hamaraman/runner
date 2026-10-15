@@ -65,14 +65,16 @@ jobs:
             echo "admobAppId=$ADMOB_APP_ID"
             echo "admobNativeId=$ADMOB_NATIVE_ID"
           } >> local.properties
-          ./gradlew :app:assembleRelease --no-daemon
+          ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon
 
-      - name: Upload release APK
+      - name: Upload release APK and AAB
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v7
         with:
           name: runner-release-apk
-          path: app/build/outputs/apk/release/app-release.apk
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/bundle/release/app-release.aab
 
   release:
     needs: build
@@ -91,12 +93,14 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           apk="runner-${GITHUB_REF_NAME#v}.apk"
-          mv app-release.apk "$apk"
+          aab="runner-${GITHUB_REF_NAME#v}.aab" # Play 스토어 업로드용
+          mv apk/release/app-release.apk "$apk"
+          mv bundle/release/app-release.aab "$aab"
           # 주석 태그(git tag -a)의 메시지를 변경사항으로 쓴다. 가벼운 태그면 비워 둔다.
           sha=$(gh api "repos/$GH_REPO/git/ref/tags/$GITHUB_REF_NAME" --jq 'select(.object.type == "tag") | .object.sha')
           changes=""
           [ -n "$sha" ] && changes="$(gh api "repos/$GH_REPO/git/tags/$sha" --jq .message)"$'\n\n'
-          gh release create "$GITHUB_REF_NAME" "$apk" \
+          gh release create "$GITHUB_REF_NAME" "$apk" "$aab" \
             --title "러너 $GITHUB_REF_NAME" \
             --notes "${changes}안드로이드 8.0 이상 폰에서 APK를 받아 설치하세요 (출처를 알 수 없는 앱 허용 필요). 피드백은 https://github.com/$GITHUB_REPOSITORY/issues 에 남겨주세요." \
             --generate-notes

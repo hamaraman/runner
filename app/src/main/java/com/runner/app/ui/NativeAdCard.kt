@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.ads.AdLoader
 import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.nativead.MediaView
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdOptions
 import com.google.android.gms.ads.nativead.NativeAdView
@@ -62,16 +63,17 @@ fun NativeAdCard(modifier: Modifier = Modifier) {
     )
 }
 
-// 한 줄 카드: 아이콘 · [광고] 제목 / 본문 · 버튼. 카드 모양은 앱의 다른 카드(16dp, surfaceContainerLow)와 맞춘다.
-// 미디어(큰 이미지·영상)는 화면을 너무 차지해서 뺐다.
+// 가로 카드: [대표 이미지·영상] | [광고] 제목 / 본문 / 아이콘 · 버튼. 카드 모양은 앱의 다른 카드(16dp, surfaceContainerLow)와 맞춘다.
+// 대표 이미지·영상은 반드시 MediaView로 보여야 하고 최소 120×120dp라서 왼쪽 정사각형으로 둔다.
 private fun nativeAdCardView(c: Context, k: AdColors): NativeAdView {
     val dp = c.resources.displayMetrics.density
     fun px(v: Int) = (v * dp).toInt()
     fun rounded(color: Int, radius: Int) = GradientDrawable().apply { setColor(color); cornerRadius = px(radius).toFloat() }
 
-    val icon = ImageView(c).apply {
-        layoutParams = LinearLayout.LayoutParams(px(40), px(40))
-        background = rounded(k.surface, 8); clipToOutline = true
+    val media = MediaView(c).apply {
+        layoutParams = LinearLayout.LayoutParams(px(120), px(120))
+        setImageScaleType(ImageView.ScaleType.CENTER_CROP)
+        background = rounded(k.surface, 12); clipToOutline = true
     }
     val badge = TextView(c).apply {
         text = "광고"; textSize = 10f; setTextColor(k.onAccent); background = rounded(k.accent, 4)
@@ -79,30 +81,43 @@ private fun nativeAdCardView(c: Context, k: AdColors): NativeAdView {
     }
     val headline = TextView(c).apply {
         textSize = 14f; setTextColor(k.fg); setTypeface(typeface, Typeface.BOLD)
-        maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(px(6), 0, 0, 0)
+        maxLines = 1; ellipsize = TextUtils.TruncateAt.END; setPadding(px(6), 0, px(20), 0) // 오른쪽은 AdChoices 자리
     }
-    val body = TextView(c).apply { textSize = 12f; setTextColor(k.muted); maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
-    val titleRow = LinearLayout(c).apply { gravity = Gravity.CENTER_VERTICAL; addView(badge); addView(headline) }
-    val texts = LinearLayout(c).apply {
-        orientation = LinearLayout.VERTICAL
-        layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = px(12); marginEnd = px(8) }
-        addView(titleRow); addView(body)
+    val body = TextView(c).apply {
+        textSize = 12f; setTextColor(k.muted); maxLines = 2; ellipsize = TextUtils.TruncateAt.END
+        layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f).apply { topMargin = px(4) }
+    }
+    val icon = ImageView(c).apply {
+        layoutParams = LinearLayout.LayoutParams(px(28), px(28))
+        background = rounded(k.surface, 6); clipToOutline = true
     }
     val cta = Button(c).apply {
         textSize = 12f; setTextColor(k.onAccent); background = rounded(k.accent, 16); isAllCaps = false
         stateListAnimator = null; minWidth = 0; minimumWidth = 0; minHeight = px(32); minimumHeight = px(32)
         setPadding(px(14), 0, px(14), 0)
     }
+    val titleRow = LinearLayout(c).apply { gravity = Gravity.CENTER_VERTICAL; addView(badge); addView(headline) }
+    val actionRow = LinearLayout(c).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        addView(icon)
+        addView(View(c), LinearLayout.LayoutParams(0, 0, 1f))
+        addView(cta)
+    }
+    val texts = LinearLayout(c).apply {
+        orientation = LinearLayout.VERTICAL
+        layoutParams = LinearLayout.LayoutParams(0, px(120), 1f).apply { marginStart = px(12) }
+        addView(titleRow); addView(body); addView(actionRow)
+    }
     val row = LinearLayout(c).apply {
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(px(14), px(12), px(14), px(12))
+        setPadding(px(12), px(12), px(12), px(12))
         layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
-        addView(icon); addView(texts); addView(cta)
+        addView(media); addView(texts)
     }
     return NativeAdView(c).apply {
         background = rounded(k.surface, 16); clipToOutline = true
         addView(row)
-        iconView = icon; headlineView = headline; bodyView = body; callToActionView = cta
+        mediaView = media; iconView = icon; headlineView = headline; bodyView = body; callToActionView = cta
     }
 }
 
@@ -112,5 +127,6 @@ private fun NativeAdView.bind(ad: NativeAd) {
     (bodyView as TextView).apply { text = ad.body ?: ad.advertiser; shownIf(text.isNotEmpty()) }
     (callToActionView as Button).apply { text = ad.callToAction; shownIf(ad.callToAction != null) }
     (iconView as ImageView).apply { setImageDrawable(ad.icon?.drawable); shownIf(ad.icon != null) }
-    setNativeAd(ad)
+    mediaView?.shownIf(ad.mediaContent != null)
+    setNativeAd(ad) // 대표 이미지·영상은 setNativeAd가 mediaView에 채운다
 }

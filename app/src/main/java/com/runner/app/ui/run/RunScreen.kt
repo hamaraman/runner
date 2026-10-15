@@ -62,6 +62,7 @@ import com.runner.app.tracking.RunTrackingService
 import com.runner.app.tracking.TrackingState
 import com.runner.app.tracking.TrackingStatus
 import com.runner.app.ui.DateTimeFmt
+import com.runner.app.ui.NativeAdCard
 import com.runner.app.ui.SectionTitle
 import com.runner.app.ui.StatBlock
 import com.runner.app.ui.millisToLocal
@@ -82,7 +83,7 @@ import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
 @Composable
-fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivacyOptions: (() -> Unit)? = null) {
+fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivacyOptions: (() -> Unit)? = null, adsReady: Boolean = false) {
     val context = LocalContext.current
     val container = rememberContainer()
     val tracking by TrackingState.state.collectAsStateWithLifecycle()
@@ -209,6 +210,7 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivac
         }
         if (!active) {
             item { WeeklySummary(runs) }
+            if (adsReady) item(key = "ad") { NativeAdCard() }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     SectionTitle("기록")

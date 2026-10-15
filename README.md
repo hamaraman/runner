@@ -42,7 +42,7 @@ GitHub Actions가 푸시마다 테스트와 APK 빌드를 수행하고, `runner-
 
 ## 네이버 지도 설정
 
-1. [네이버 클라우드 플랫폼](https://console.ncloud.com) → Maps → Application 등록 (Dynamic Map, Android 패키지명 `com.runner.app`)
+1. [네이버 클라우드 플랫폼](https://console.ncloud.com) → Maps → Application 등록 (Dynamic Map, Android 패키지명 `io.github.hamaraman.runner`)
 2. 발급받은 Client ID를 `local.properties`에 추가 (커밋되지 않음):
    ```
    naverMapClientId=발급받은_ID

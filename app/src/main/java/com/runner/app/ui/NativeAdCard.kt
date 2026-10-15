@@ -110,7 +110,7 @@ private fun nativeAdCardView(c: Context, k: AdColors): NativeAdView {
     }
     val row = LinearLayout(c).apply {
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(px(12), px(12), px(12), px(12))
+        setPadding(px(8), px(4), px(12), px(4)) // 높이 = MediaView 최소 120dp + 위아래 4dp
         layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
         addView(media); addView(texts)
     }

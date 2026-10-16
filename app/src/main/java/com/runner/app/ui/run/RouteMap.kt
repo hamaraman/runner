@@ -95,9 +95,9 @@ private class MapState {
         overlays.forEach { it.map = null }
         overlays.clear()
         val geo = points.map { LatLng(it.lat, it.lng) }
-        // 일시정지 구간끼리는 선을 잇지 않도록 segment별로 따로 그린다 (PathOverlay는 2점 이상 필요)
-        points.indices.groupBy { points[it].segment }.values.filter { it.size >= 2 }.forEach { idx ->
-            overlays += PathOverlay(idx.map { geo[it] }).apply {
+        // 일시정지 전후도 한 선으로 잇고, 멈춘 자리(segment가 바뀌기 직전 점)에 마커를 단다 (PathOverlay는 2점 이상 필요)
+        if (geo.size >= 2) {
+            overlays += PathOverlay(geo).apply {
                 // 네비게이션처럼 굵은 파란 선 + 진한 테두리 + 진행 방향 화살표 (px 단위라 dp로 환산)
                 color = lineColor
                 width = dp(10)
@@ -105,6 +105,17 @@ private class MapState {
                 outlineWidth = dp(1)
                 patternImage = ARROW
                 patternInterval = dp(28)
+            }
+        }
+        if (markers) {
+            for (i in 1 until points.size) {
+                if (points[i].segment == points[i - 1].segment) continue
+                overlays += Marker(geo[i - 1]).apply {
+                    icon = MarkerIcons.YELLOW
+                    width = dp(18)
+                    height = dp(24)
+                    captionText = "일시정지"
+                }
             }
         }
         if (markers && geo.isNotEmpty()) {

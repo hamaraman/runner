@@ -118,7 +118,8 @@ class PaceAlertPolicy(
 class AutoPauseDetector(
     private val stopWindowMs: Long = 10_000,
     private val stopRadiusM: Double = 8.0,
-    private val resumeWindowMs: Long = 5_000,
+    /** 7초에 7m(초속 1m): 천천히 걷기 시작해도 풀리고, 서 있을 때 GPS 흔들림(±3m)으로는 안 풀린다. */
+    private val resumeWindowMs: Long = 7_000,
     private val resumeDistanceM: Double = 7.0,
 ) {
     enum class Event { PAUSED, RESUMED }

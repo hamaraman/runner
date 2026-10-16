@@ -11,7 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Hiking
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -35,12 +35,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.runner.app.CrashReport
-import com.runner.app.ui.crew.CrewScreen
 import com.runner.app.ui.plan.PlanScreen
 import com.runner.app.ui.race.RaceScreen
 import com.runner.app.ui.run.AllRoutesScreen
 import com.runner.app.ui.run.RunDetailScreen
 import com.runner.app.ui.run.RunScreen
+import com.runner.app.ui.run.ShoesScreen
 import com.runner.app.ui.theme.RunnerTheme
 
 class MainActivity : ComponentActivity() {
@@ -92,7 +92,7 @@ private data class Tab(val route: String, val label: String, val icon: ImageVect
 private val tabs = listOf(
     Tab("run", "러닝", Icons.AutoMirrored.Filled.DirectionsRun),
     Tab("plan", "훈련", Icons.Filled.CalendarMonth),
-    Tab("crew", "크루", Icons.Filled.Groups),
+    Tab("shoes", "러닝화", Icons.Filled.Hiking),
     Tab("race", "대회", Icons.Filled.EmojiEvents),
 )
 
@@ -136,7 +136,7 @@ private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
             ) {
                 PlanScreen(raceId = it.arguments?.getString("raceId"))
             }
-            composable("crew") { CrewScreen() }
+            composable("shoes") { ShoesScreen() }
             composable("race") {
                 RaceScreen(onMakePlan = { raceId -> nav.goTab("plan?raceId=$raceId") })
             }

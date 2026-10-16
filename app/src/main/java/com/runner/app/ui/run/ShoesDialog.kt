@@ -59,9 +59,25 @@ import java.util.UUID
 /** 보통 600~800km에서 교체를 권한다. */
 internal const val REPLACE_KM = 700.0
 
-/** 러닝화 관리: 맨 위 현역 신발이 새 러닝에 자동으로 붙는다. */
 @Composable
 fun ShoesDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("러닝화") },
+        text = { ShoesContent(Modifier.verticalScroll(rememberScrollState())) },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("닫기") } },
+    )
+}
+
+/** 러닝화 관리 탭. */
+@Composable
+fun ShoesScreen() {
+    ShoesContent(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp))
+}
+
+/** 러닝화 관리: 맨 위 현역 신발이 새 러닝에 자동으로 붙는다. */
+@Composable
+fun ShoesContent(modifier: Modifier = Modifier) {
     val container = rememberContainer()
     val shoes by container.shoes.state.collectAsStateWithLifecycle()
     val runs by container.runs.state.collectAsStateWithLifecycle()
@@ -87,11 +103,7 @@ fun ShoesDialog(onDismiss: () -> Unit) {
     // 사진만 고르고 추가하지 않은 채 닫으면 파일을 지운다.
     DisposableEffect(Unit) { onDispose { newPhoto?.let(container::discardShoePhoto) } }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("러닝화") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 shoes.forEach { shoe ->
                     val km = shoe.totalKm(runs)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -129,9 +141,6 @@ fun ShoesDialog(onDismiss: () -> Unit) {
                     enabled = name.isNotBlank(),
                 ) { Text("추가") }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("닫기") } },
-    )
 }
 
 /** 기록에 붙은 신발을 바꾸는 줄. 누르면 다음 신발(마지막 다음은 없음)로 넘어간다. */

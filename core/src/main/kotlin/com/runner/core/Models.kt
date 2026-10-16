@@ -38,6 +38,10 @@ data class Shoe(
     val retired: Boolean = false,
     /** 앱 내부에 복사해 둔 사진 파일 이름. */
     val photo: String? = null,
+    /** 이 거리에 다다르면 교체를 권한다. 보통 600~800km. */
+    val limitKm: Double = 700.0,
+    /** 처음 신기 시작한 날. */
+    val firstEpochDay: Long? = null,
 )
 
 /** 신발의 누적 마일리지(km). */

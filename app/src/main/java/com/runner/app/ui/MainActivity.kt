@@ -34,6 +34,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.runner.app.CrashReport
 import com.runner.app.ui.crew.CrewScreen
 import com.runner.app.ui.plan.PlanScreen
 import com.runner.app.ui.race.RaceScreen
@@ -51,6 +52,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             RunnerTheme {
+                CrashReport()
                 UpdateCheck()
                 RunnerNav(
                     adsReady = adsReady.value,

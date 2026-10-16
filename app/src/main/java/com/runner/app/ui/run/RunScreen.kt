@@ -6,6 +6,15 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.runBlocking
+import com.runner.app.data.HealthSync
+import androidx.health.connect.client.PermissionController
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.rememberCoroutineScope
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -94,6 +103,29 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivac
     var confirmStop by remember { mutableStateOf(false) }
     var showCoachSettings by remember { mutableStateOf(false) }
     var showShoes by remember { mutableStateOf(false) }
+    var restoreUri by remember { mutableStateOf<Uri?>(null) }
+    val scope = rememberCoroutineScope()
+    // 전체 백업: 시스템 저장 창으로 zip을 내보내고, 고른 zip으로 통째로 되돌린다
+    fun backupJob(ok: String, fail: String, block: () -> Unit) = scope.launch {
+        val success = withContext(Dispatchers.IO) { runCatching(block).isSuccess }
+        Toast.makeText(context, if (success) ok else fail, Toast.LENGTH_SHORT).show()
+    }
+    val saveBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) backupJob("백업을 저장했어요", "백업에 실패했어요") {
+            context.contentResolver.openOutputStream(uri)!!.use(container::exportBackup)
+        }
+    }
+    // Health Connect: 권한을 받으면 지금까지 기록도 한 번에 보낸다 (이후엔 저장할 때마다 자동)
+    var healthLinked by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { healthLinked = HealthSync.granted(context) }
+    val healthPermission = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
+        healthLinked = granted.containsAll(HealthSync.permissions)
+        if (healthLinked && container.runs.value.isEmpty()) Toast.makeText(context, "연동됐어요. 보낼 기록은 아직 없어요", Toast.LENGTH_SHORT).show()
+        else if (healthLinked) backupJob("기록 ${container.runs.value.size}개를 Health Connect로 보냈어요", "보내지 못했어요") {
+            check(runBlocking { HealthSync.write(context, container.runs.value) } == 0)
+        }
+    }
+    val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { restoreUri = it }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         when {
@@ -221,6 +253,22 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivac
                 item { EmptyState("아직 기록이 없어요. 첫 러닝을 시작해보세요!") }
             }
             items(runs, key = { it.id }) { run -> RunRow(run) { onOpenRun(run.id) } }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    TextButton(onClick = { saveBackup.launch("runner-backup-${LocalDate.now()}.zip") }) { Text("기록 백업") }
+                    TextButton(onClick = { pickBackup.launch(arrayOf("application/zip", "application/octet-stream")) }) { Text("백업 불러오기") }
+                }
+            }
+            if (HealthSync.available(context)) {
+                item {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        // 이미 연동됐으면 권한 창 없이 바로 결과가 와서 전체 기록을 다시 보낸다
+                        TextButton(onClick = { healthPermission.launch(HealthSync.permissions) }) {
+                            Text(if (healthLinked) "Health Connect로 기록 다시 보내기" else "Health Connect 연동")
+                        }
+                    }
+                }
+            }
             if (onPrivacyOptions != null) {
                 item {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -264,6 +312,23 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivac
             dismissButton = {
                 TextButton(onClick = { container.draft.update { null } }) { Text("삭제", color = MaterialTheme.colorScheme.error) }
             },
+        )
+    }
+
+    restoreUri?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { restoreUri = null },
+            title = { Text("백업을 불러올까요?") },
+            text = { Text("지금 있는 기록·훈련·신발 정보가 백업 내용으로 모두 바뀌어요.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    restoreUri = null
+                    backupJob("백업을 불러왔어요", "불러오지 못했어요. 러너 백업 파일인지 확인해 주세요") {
+                        context.contentResolver.openInputStream(uri)!!.use(container::importBackup)
+                    }
+                }) { Text("불러오기") }
+            },
+            dismissButton = { TextButton(onClick = { restoreUri = null }) { Text("취소") } },
         )
     }
 

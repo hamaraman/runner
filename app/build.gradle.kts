@@ -38,6 +38,10 @@ android {
     }
 
     buildTypes {
+        // 디버그는 다른 앱으로 설치돼 정식 앱(과 기록)을 지우지 않고 나란히 시험할 수 있다
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             signingConfig = releaseSigning
             isMinifyEnabled = false

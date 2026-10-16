@@ -38,6 +38,14 @@ class JsonStore<T>(
         }
     }
 
+    fun toJson(): String = json.encodeToString(serializer, value)
+
+    /** 백업 복원용: 지금 파싱해서 깨졌으면 여기서 예외, 적용은 돌려준 함수를 부를 때. */
+    fun prepare(text: String): () -> Unit {
+        val parsed = json.decodeFromString(serializer, text)
+        return { update { parsed } }
+    }
+
     private fun load(): T? = try {
         if (file.exists()) json.decodeFromString(serializer, file.readText()) else null
     } catch (e: Exception) {

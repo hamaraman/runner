@@ -13,8 +13,10 @@ junit = "4.13.2"
 naverMap = "3.21.0"
 playServicesAds = "24.9.0"
 ump = "4.0.0"
+healthConnect = "1.1.0"
 
 [libraries]
+health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }

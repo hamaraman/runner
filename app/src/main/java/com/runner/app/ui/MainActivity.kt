@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             RunnerTheme {
+                UpdateCheck()
                 RunnerNav(
                     adsReady = adsReady.value,
                     onPrivacyOptions = if (privacyOptionsRequired.value) {

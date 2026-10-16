@@ -22,6 +22,8 @@ data class TrackingSnapshot(
     val currentPaceSec: Double? = null,
     /** 이번 러닝의 목표 페이스 범위(초/km) */
     val targetPace: IntRange2? = null,
+    /** 인터벌 진행 표시. 예: "달리기 3/17 · 0:45 남음" */
+    val intervalText: String? = null,
 )
 
 /** 서비스와 UI가 공유하는 현재 러닝 상태. */

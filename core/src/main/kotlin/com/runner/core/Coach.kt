@@ -12,6 +12,8 @@ data class CoachSettings(
     val autoPause: Boolean = true,
     /** 훈련표에 목표가 없을 때 쓰는 목표 페이스(초/km). null이면 알림 없음. */
     val manualTargetPaceSec: Int? = null,
+    /** 다음 러닝에 쓸 초보 인터벌 프로그램 회차([IntervalPrograms.beginner] 인덱스). null이면 끔. */
+    val intervalSession: Int? = null,
 )
 
 object TargetPace {

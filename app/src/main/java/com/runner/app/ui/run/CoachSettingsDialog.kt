@@ -3,11 +3,15 @@ package com.runner.app.ui.run
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -23,8 +27,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.runner.app.ui.TextInput
 import com.runner.core.CoachSettings
+import com.runner.core.IntervalPrograms
 import com.runner.core.Pace
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CoachSettingsDialog(initial: CoachSettings, onDismiss: () -> Unit, onSave: (CoachSettings) -> Unit) {
     val context = LocalContext.current
@@ -32,6 +38,7 @@ fun CoachSettingsDialog(initial: CoachSettings, onDismiss: () -> Unit, onSave: (
     var km by remember { mutableStateOf(initial.kmAnnounce) }
     var paceAlert by remember { mutableStateOf(initial.paceAlert) }
     var autoPause by remember { mutableStateOf(initial.autoPause) }
+    var interval by remember { mutableStateOf(initial.intervalSession) }
     var manualPace by remember {
         mutableStateOf(initial.manualTargetPaceSec?.let { "%d:%02d".format(it / 60, it % 60) }.orEmpty())
     }
@@ -45,6 +52,19 @@ fun CoachSettingsDialog(initial: CoachSettings, onDismiss: () -> Unit, onSave: (
                 SwitchRow("1km마다 안내", "구간 기록과 평균 페이스", km, enabled = voice) { km = it }
                 SwitchRow("목표 페이스 알림", "빠르거나 느리면 알려줘요 (시작 2분 후부터)", paceAlert, enabled = voice) { paceAlert = it }
                 SwitchRow("자동 일시정지", "신호 대기 등으로 멈추면 기록을 잠시 멈춰요", autoPause) { autoPause = it }
+                Text("초보 인터벌 프로그램", Modifier.padding(top = 8.dp), style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(selected = interval == null, onClick = { interval = null }, label = { Text("끔") })
+                    IntervalPrograms.beginner.indices.forEach { i ->
+                        FilterChip(selected = interval == i, onClick = { interval = i }, label = { Text("${i + 1}주") })
+                    }
+                }
+                Text(
+                    interval?.let { IntervalPrograms.beginner[it].name + " · 끝까지 마치면 다음 회차로 넘어가요" }
+                        ?: "걷기·달리기를 번갈아 음성과 진동으로 안내해요",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 TextInput("기본 목표 페이스 (선택)", manualPace, { manualPace = it }, placeholder = "예: 6:00")
                 Text(
                     "오늘 훈련표에 목표 페이스가 있으면 그걸 먼저 써요. 인터벌 날에는 페이스 알림을 하지 않아요.",
@@ -60,7 +80,7 @@ fun CoachSettingsDialog(initial: CoachSettings, onDismiss: () -> Unit, onSave: (
                     Toast.makeText(context, "페이스는 6:00처럼 입력해주세요 (2:30~20:00)", Toast.LENGTH_SHORT).show()
                     return@save
                 }
-                onSave(CoachSettings(voice, km, paceAlert, autoPause, paceSec))
+                onSave(CoachSettings(voice, km, paceAlert, autoPause, paceSec, interval))
             }) { Text("저장") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("취소") } },

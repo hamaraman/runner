@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Hiking
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -22,6 +21,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
+import com.runner.app.R
 import com.google.android.gms.ads.MobileAds
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
@@ -87,13 +88,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
+private data class Tab(val route: String, val label: String, val icon: @Composable () -> ImageVector)
 
 private val tabs = listOf(
-    Tab("run", "러닝", Icons.AutoMirrored.Filled.DirectionsRun),
-    Tab("plan", "훈련", Icons.Filled.CalendarMonth),
-    Tab("shoes", "러닝화", Icons.Filled.Hiking),
-    Tab("race", "대회", Icons.Filled.EmojiEvents),
+    Tab("run", "러닝") { Icons.AutoMirrored.Filled.DirectionsRun },
+    Tab("plan", "훈련") { Icons.Filled.CalendarMonth },
+    Tab("shoes", "러닝화") { ImageVector.vectorResource(R.drawable.ic_shoe) },
+    Tab("race", "대회") { Icons.Filled.EmojiEvents },
 )
 
 @Composable
@@ -109,7 +110,7 @@ private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
                     NavigationBarItem(
                         selected = current.substringBefore("?").substringBefore("/") == tab.route,
                         onClick = { nav.goTab(tab.route) },
-                        icon = { Icon(tab.icon, contentDescription = tab.label) },
+                        icon = { Icon(tab.icon(), contentDescription = tab.label) },
                         label = { Text(tab.label) },
                     )
                 }
@@ -124,7 +125,7 @@ private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
             exitTransition = { ExitTransition.None },
         ) {
             composable("run") {
-                RunScreen(onOpenRun = { id -> nav.navigate("run/$id") }, onOpenAllRoutes = { nav.navigate("routes") }, onPrivacyOptions = onPrivacyOptions, adsReady = adsReady)
+                RunScreen(onOpenRun = { id -> nav.navigate("run/$id") }, onOpenAllRoutes = { nav.navigate("routes") }, onOpenShoes = { nav.goTab("shoes") }, onPrivacyOptions = onPrivacyOptions, adsReady = adsReady)
             }
             composable("routes") { AllRoutesScreen(onBack = { nav.popBackStack() }) }
             composable("run/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {

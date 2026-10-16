@@ -202,6 +202,10 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
                         if (active) StatBlock("현재 페이스", Pace.format(tracking.currentPaceSec))
                         StatBlock("평균 페이스", Pace.format(Pace.secPerKm(tracking.distanceM, tracking.elapsedSec)))
                     }
+                    tracking.intervalText?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                    }
                     tracking.targetPace?.let { target ->
                         Spacer(Modifier.height(8.dp))
                         Text("목표 페이스 ${Pace.formatRange(target)}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -13,6 +13,8 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -30,6 +32,8 @@ import com.runner.core.AutoPauseDetector
 import com.runner.core.CoachSettings
 import com.runner.core.Geo
 import com.runner.core.IntRange2
+import com.runner.core.IntervalPrograms
+import com.runner.core.IntervalStep
 import com.runner.core.KmSplitTracker
 import com.runner.core.PaceAlertPolicy
 import com.runner.core.TargetPace
@@ -71,6 +75,8 @@ class RunTrackingService : Service() {
     private var splitTracker = KmSplitTracker()
     private var paceAlert: PaceAlertPolicy? = null
     private val autoPause = AutoPauseDetector()
+    private var intervalSteps: List<IntervalStep>? = null
+    private var intervalIndex = -1
 
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -113,7 +119,10 @@ class RunTrackingService : Service() {
         settings = container.coach.value
         splitTracker = KmSplitTracker()
         autoPause.reset()
-        val target = chooseTarget()
+        intervalSteps = settings.intervalSession?.let { IntervalPrograms.beginner.getOrNull(it)?.steps }
+        intervalIndex = -1
+        // 인터벌은 구간마다 페이스가 달라 페이스 알림을 하지 않는다
+        val target = if (intervalSteps != null) null else chooseTarget()
         paceAlert = target?.takeIf { settings.paceAlert }?.let { PaceAlertPolicy(it) }
 
         TrackingState.mutable.value = TrackingSnapshot(
@@ -175,6 +184,8 @@ class RunTrackingService : Service() {
 
         val durationSec = accumulatedMs / 1000
         // 너무 짧은 기록(1분 미만·50m 미만)은 저장하지 않음
+        if (save && intervalSteps != null && intervalIndex == intervalSteps!!.size) advanceIntervalSession()
+        intervalSteps = null
         if (save && snap.status != TrackingStatus.IDLE && (durationSec >= 60 || snap.distanceM >= 50)) {
             container.saveRun(
                 RunRecord(
@@ -274,6 +285,7 @@ class RunTrackingService : Service() {
                 val snap = TrackingState.state.value
                 val current = if (snap.autoPaused) null else Geo.recentPaceSec(snap.points)
                 TrackingState.mutable.update { it.copy(elapsedSec = elapsedMs / 1000, currentPaceSec = current) }
+                updateInterval(elapsedMs / 1000)
                 if (tick % 10 == 0 && !snap.autoPaused) checkPace(current, elapsedMs)
                 if (tick % 5 == 0) updateNotification()
                 if (tick % 10 == 9) saveDraft()
@@ -281,6 +293,35 @@ class RunTrackingService : Service() {
                 delay(1_000L)
             }
         }
+    }
+
+    /** 인터벌 구간이 바뀌면 음성·진동으로 알리고 화면 표시를 갱신한다. 끝나면 intervalIndex = steps.size. */
+    private fun updateInterval(elapsedSec: Long) {
+        val steps = intervalSteps ?: return
+        if (intervalIndex == steps.size) return
+        val pos = IntervalPrograms.at(steps, elapsedSec)
+        val index = pos?.index ?: steps.size
+        if (index != intervalIndex) {
+            intervalIndex = index
+            vibrate()
+            say(if (pos == null) "인터벌 프로그램 완료! 수고했어요." else "${steps[index].label} ${VoiceText.duration(steps[index].sec.toLong())}.")
+        }
+        val text = pos?.let { "${steps[it.index].label} ${it.index + 1}/${steps.size} · ${Pace.formatDuration(it.remainingSec.toLong())} 남음" }
+            ?: "인터벌 완료"
+        TrackingState.mutable.update { it.copy(intervalText = text) }
+    }
+
+    /** 끝까지 마친 회차면 다음 회차로 넘긴다. 마지막 회차를 마치면 프로그램을 끈다. */
+    private fun advanceIntervalSession() {
+        container.coach.update { s ->
+            val next = (s.intervalSession ?: return@update s) + 1
+            s.copy(intervalSession = next.takeIf { it < IntervalPrograms.beginner.size })
+        }
+    }
+
+    private fun vibrate() {
+        @Suppress("DEPRECATION")
+        getSystemService(Vibrator::class.java)?.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
     }
 
     /** 지금까지의 기록을 임시 저장한다. 강제 종료 시 최대 10초 분량만 잃는다. */

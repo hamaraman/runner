@@ -106,6 +106,18 @@ class AutoPauseDetectorTest {
         assertEquals(AutoPauseDetector.Event.RESUMED, resumed!!.event)
         assertFalse(d.paused)
     }
+
+    @Test fun slowWalkResumesAndDoesNotPause() {
+        // 인터벌 걷기 구간: 초속 1.2m
+        val d = AutoPauseDetector()
+        val (lat, _) = feedLine(d, 0, 20, 0.0, 37.0)
+        assertTrue(d.paused)
+        val (_, resumed) = feedLine(d, 21, 40, 1.2, lat)
+        assertEquals(AutoPauseDetector.Event.RESUMED, resumed!!.event)
+        val (_, again) = feedLine(d, 41, 120, 1.2, lat + 20 * 1.2 / 111_195.0)
+        assertNull(again)
+        assertFalse(d.paused)
+    }
 }
 
 class RecentPaceTest {

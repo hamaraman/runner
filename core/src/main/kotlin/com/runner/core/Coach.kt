@@ -12,6 +12,8 @@ data class CoachSettings(
     val autoPause: Boolean = true,
     /** 훈련표에 목표가 없을 때 쓰는 목표 페이스(초/km). null이면 알림 없음. */
     val manualTargetPaceSec: Int? = null,
+    /** 다음 러닝에 쓸 초보 인터벌 프로그램 회차([IntervalPrograms.beginner] 인덱스). null이면 끔. */
+    val intervalSession: Int? = null,
 )
 
 object TargetPace {
@@ -116,7 +118,8 @@ class PaceAlertPolicy(
 class AutoPauseDetector(
     private val stopWindowMs: Long = 10_000,
     private val stopRadiusM: Double = 8.0,
-    private val resumeWindowMs: Long = 5_000,
+    /** 7초에 7m(초속 1m): 천천히 걷기 시작해도 풀리고, 서 있을 때 GPS 흔들림(±3m)으로는 안 풀린다. */
+    private val resumeWindowMs: Long = 7_000,
     private val resumeDistanceM: Double = 7.0,
 ) {
     enum class Event { PAUSED, RESUMED }

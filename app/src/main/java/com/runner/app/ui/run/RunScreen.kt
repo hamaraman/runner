@@ -92,7 +92,7 @@ import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
 @Composable
-fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivacyOptions: (() -> Unit)? = null, adsReady: Boolean = false) {
+fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenShoes: () -> Unit, onPrivacyOptions: (() -> Unit)? = null, adsReady: Boolean = false) {
     val context = LocalContext.current
     val container = rememberContainer()
     val tracking by TrackingState.state.collectAsStateWithLifecycle()
@@ -102,7 +102,6 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivac
     val draft by container.draft.state.collectAsStateWithLifecycle()
     var confirmStop by remember { mutableStateOf(false) }
     var showCoachSettings by remember { mutableStateOf(false) }
-    var showShoes by remember { mutableStateOf(false) }
     var restoreUri by remember { mutableStateOf<Uri?>(null) }
     val scope = rememberCoroutineScope()
     // 전체 백업: 시스템 저장 창으로 zip을 내보내고, 고른 zip으로 통째로 되돌린다
@@ -230,7 +229,7 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivac
                                 Spacer(Modifier.height(6.dp))
                                 Text("코칭 설정", style = MaterialTheme.typography.titleMedium)
                             }
-                            ShoeTile(shoes.firstOrNull { !it.retired }, runs, Modifier.weight(1f).fillMaxHeight()) { showShoes = true }
+                            ShoeTile(shoes.firstOrNull { !it.retired }, runs, Modifier.weight(1f).fillMaxHeight(), onOpenShoes)
                         }
                         Spacer(Modifier.height(12.dp))
                     }
@@ -295,7 +294,6 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onPrivac
         )
     }
 
-    if (showShoes) ShoesDialog(onDismiss = { showShoes = false })
 
     // 러닝 중 앱이 강제 종료돼 남은 임시 기록. 서비스가 돌고 있으면 진행 중인 기록이라 건드리지 않는다.
     draft?.takeIf { !active }?.let { d ->
@@ -442,7 +440,7 @@ private fun ShoeTile(shoe: Shoe?, runs: List<RunRecord>, modifier: Modifier, onC
             return@Tile
         }
         val km = shoe.totalKm(runs)
-        val accent = if (km >= REPLACE_KM) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+        val accent = if (km >= shoe.limitKm) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
         val photo = rememberContainer().shoePhoto(shoe)
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (photo != null) {
@@ -452,14 +450,14 @@ private fun ShoeTile(shoe: Shoe?, runs: List<RunRecord>, modifier: Modifier, onC
             Column(horizontalAlignment = if (photo != null) Alignment.Start else Alignment.CenterHorizontally) {
                 Text(shoe.name, style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text("%.1f".format(km), style = MaterialTheme.typography.titleLarge, color = if (km >= REPLACE_KM) accent else MaterialTheme.colorScheme.onSurface)
+                    Text("%.1f".format(km), style = MaterialTheme.typography.titleLarge, color = if (km >= shoe.limitKm) accent else MaterialTheme.colorScheme.onSurface)
                     Text(" km", Modifier.padding(bottom = 2.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
         Spacer(Modifier.height(6.dp))
         LinearProgressIndicator(
-            progress = { (km / REPLACE_KM).toFloat().coerceIn(0f, 1f) },
+            progress = { (km / shoe.limitKm).toFloat().coerceIn(0f, 1f) },
             modifier = Modifier.fillMaxWidth().height(6.dp),
             color = accent,
             trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,

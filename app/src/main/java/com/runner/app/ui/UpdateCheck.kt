@@ -26,18 +26,21 @@ private const val LATEST_RELEASE = "https://api.github.com/repos/hamaraman/runne
 
 private data class Release(val tag: String, val url: String)
 
-/** 앱 시작 시 GitHub 최신 릴리스를 확인해 새 버전이면 다이얼로그를 띄운다. 오프라인·실패는 조용히 무시. */
+/** 앱 시작 시 GitHub 최신 릴리스를 확인해 새 버전이면 다이얼로그를 띄운다. "나중에"는 하루 동안 다시 안 띄운다. 오프라인·실패는 조용히 무시. */
 @Composable
 fun UpdateCheck() {
     val context = LocalContext.current
     var release by remember { mutableStateOf<Release?>(null) }
+    val prefs = remember { context.getSharedPreferences("update_check", Context.MODE_PRIVATE) }
+    val later = { prefs.edit().putLong("laterAt", System.currentTimeMillis()).apply(); release = null }
     LaunchedEffect(Unit) {
+        if (System.currentTimeMillis() - prefs.getLong("laterAt", 0) < 24 * 60 * 60 * 1000L) return@LaunchedEffect
         val latest = runCatching { fetchLatest() }.getOrNull() ?: return@LaunchedEffect
         if (isNewerVersion(latest.tag, context.versionName())) release = latest
     }
     val r = release ?: return
     AlertDialog(
-        onDismissRequest = { release = null },
+        onDismissRequest = later,
         title = { Text("새 버전 ${r.tag}") },
         text = { Text("새 버전이 나왔어요. 받아서 설치하면 기록은 그대로 두고 업데이트돼요.") },
         confirmButton = {
@@ -46,7 +49,7 @@ fun UpdateCheck() {
                 release = null
             }) { Text("받으러 가기") }
         },
-        dismissButton = { TextButton(onClick = { release = null }) { Text("나중에") } },
+        dismissButton = { TextButton(onClick = later) { Text("나중에") } },
     )
 }
 

@@ -14,6 +14,7 @@ import com.runner.core.Records
 import com.runner.core.RunRecord
 import com.runner.core.Shoe
 import com.runner.core.TrainingPlan
+import com.runner.core.TrainingPlanGenerator
 import com.runner.core.Workout
 import com.runner.core.WorkoutType
 import com.runner.core.markRun
@@ -104,6 +105,44 @@ class AppContainer(context: Context) {
         val day = Instant.ofEpochMilli(run.startedAtMs).atZone(ZoneId.systemDefault()).toLocalDate()
         plan.update { it?.markRun(day.toEpochDay()) }
         return newBests
+    }
+
+    /**
+     * 대회를 추가하고, 가장 먼저 열리는 대회에 맞춰 훈련표를 자동으로 만든다.
+     * 주간 거리는 최근 4주 기록 평균(없으면 15km), 주 4회 기준. 새로 만들었으면 그 대회를 돌려준다.
+     */
+    fun addRace(race: Race, today: LocalDate = LocalDate.now()): Race? {
+        races.update { it + race }
+        return autoPlan(today)
+    }
+
+    /** 대회를 지우고, 그 대회의 훈련표도 지운다. 남은 대회가 있으면 다음 대회로 다시 만들어 그 대회를 돌려준다. */
+    fun deleteRace(race: Race, today: LocalDate = LocalDate.now()): Race? {
+        races.update { list -> list.filterNot { it.id == race.id } }
+        val p = plan.value
+        if (p != null && p.raceDateEpochDay == race.dateEpochDay && p.raceName == race.name) plan.update { null }
+        return autoPlan(today)
+    }
+
+    private fun autoPlan(today: LocalDate): Race? {
+        val target = TrainingPlanGenerator.autoTarget(races.value, plan.value, today) ?: return null
+        val since = today.minusDays(28).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val weeklyKm = runs.value.filter { it.startedAtMs >= since }.sumOf { it.distanceM } / 1000 / 4
+        return runCatching {
+            setPlan(
+                TrainingPlanGenerator.generate(
+                    TrainingPlanGenerator.Input(
+                        goal = target.distance,
+                        raceDate = LocalDate.ofEpochDay(target.dateEpochDay),
+                        today = today,
+                        currentWeeklyKm = weeklyKm.takeIf { it > 0 } ?: 15.0,
+                        runsPerWeek = 4,
+                        raceName = target.name,
+                    ),
+                ),
+            )
+            target
+        }.getOrNull()
     }
 
     /** 새 훈련 계획을 저장하면서, 지금까지의 러닝 기록을 반영한다. */

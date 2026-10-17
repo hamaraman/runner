@@ -1,8 +1,10 @@
 package com.runner.core
 
 import java.time.LocalDate
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
-/** 마라톤온라인 일정표의 대회 한 줄. */
+/** 대회 일정표의 대회 한 줄. */
 data class CalendarRace(
     val no: String,
     val name: String,
@@ -24,45 +26,55 @@ data class CalendarRace(
     }
 }
 
+@Serializable
+private data class JrPage(val races: List<JrRace> = emptyList())
+
+@Serializable
+private data class JrRace(
+    val id: Int,
+    val name: String,
+    val date: String,
+    val location: String? = null,
+    /** JSON 배열을 담은 문자열. 예: "[\"하프\",\"10km\"]" */
+    val distances: String? = null,
+    val website: String? = null,
+    val registrationUrl: String? = null,
+)
+
 /**
- * roadrun.co.kr/schedule/list.php HTML을 파싱한다.
- * 날짜에 연도가 없어서, 목록이 날짜순인 점을 이용해 월이 줄어들면 다음 해로 넘긴다.
- * ponytail: 사이트 HTML이 바뀌면 깨진다. 그땐 빈 목록이 나오고 외부 링크로 볼 수 있다.
+ * 저스트런(justrun.co.kr) 대회 일정 API. 사이트 운영자 허락을 받고 쓴다.
+ * 한 번에 최대 100개, 날짜 늦은 순으로 주므로 지난 대회가 나올 때까지 넘긴다.
  */
 object RaceCalendar {
-    const val URL = "http://www.roadrun.co.kr/schedule/list.php"
-    const val DETAIL_URL = "http://www.roadrun.co.kr/schedule/view.php?no="
+    const val URL = "https://justrun.co.kr/schedule"
+    private const val API = "https://marathon-api.t8-stats-rooney.workers.dev/api/races"
+    private const val PAGE = 100
+    private val json = Json { ignoreUnknownKeys = true }
 
-    private val dateRe = Regex("""face="Arial, Helvetica, sans-serif">(\d{1,2})/(\d{1,2})</font>""")
-    private val nameRe = Regex("""view\.php\?no=(\d+)[^>]*>([^<]+)</a><br><font size="2" color="#990000">([^<]*)""")
-    private val placeRe = Regex("""<div align="center">\s*([^<]*?)\s*</div>""")
-    private val homeRe = Regex("""<a href="(https?://[^"]+)" target="_new">""")
-
-    /** 네트워크로 받아 파싱한다. 블로킹이라 IO 스레드에서 부를 것. 사이트가 EUC-KR이다. */
+    /** 네트워크로 받아 오늘 이후 대회를 날짜순으로 돌려준다. 블로킹이라 IO 스레드에서 부를 것. */
     fun fetch(today: LocalDate = LocalDate.now()): List<CalendarRace> {
-        val conn = java.net.URL(URL).openConnection().apply { connectTimeout = 10_000; readTimeout = 15_000 }
-        val html = conn.getInputStream().use { it.readBytes() }.toString(charset("EUC-KR"))
-        return parse(html, today.year).filter { !it.date.isBefore(today) }
+        val all = mutableListOf<CalendarRace>()
+        // ponytail: 최대 10페이지(1000개). 다가오는 대회가 그보다 많아지면 늘릴 것
+        for (page in 0 until 10) {
+            val conn = java.net.URL("$API?limit=$PAGE&offset=${page * PAGE}").openConnection()
+                .apply { connectTimeout = 10_000; readTimeout = 15_000 }
+            val races = parse(conn.getInputStream().use { it.readBytes() }.decodeToString())
+            all += races
+            if (races.size < PAGE || races.any { it.date.isBefore(today) }) break
+        }
+        return all.filter { !it.date.isBefore(today) }.sortedBy { it.date }
     }
 
-    fun parse(html: String, startYear: Int): List<CalendarRace> {
-        var year = startYear
-        var lastMonth = 0
-        return html.split("<tr>").mapNotNull { row ->
-            val (m, d) = dateRe.find(row)?.destructured ?: return@mapNotNull null
-            val (no, name, courses) = nameRe.find(row)?.destructured ?: return@mapNotNull null
-            val month = m.toInt()
-            if (month < lastMonth) year++
-            lastMonth = month
-            val date = runCatching { LocalDate.of(year, month, d.toInt()) }.getOrNull() ?: return@mapNotNull null
-            CalendarRace(
-                no = no,
-                name = name.trim(),
-                date = date,
-                courses = courses.trim(),
-                place = placeRe.findAll(row).map { it.groupValues[1] }.firstOrNull { it.isNotEmpty() && it.first() != '<' }.orEmpty(),
-                homepage = homeRe.find(row)?.groupValues?.get(1) ?: DETAIL_URL + no,
-            )
-        }
+    fun parse(text: String): List<CalendarRace> = json.decodeFromString<JrPage>(text).races.mapNotNull { r ->
+        val date = runCatching { LocalDate.parse(r.date) }.getOrNull() ?: return@mapNotNull null
+        val courses = runCatching { json.decodeFromString<List<String>>(r.distances.orEmpty()) }.getOrDefault(emptyList())
+        CalendarRace(
+            no = r.id.toString(),
+            name = r.name.trim(),
+            date = date,
+            courses = courses.joinToString(", "),
+            place = r.location.orEmpty().trim(),
+            homepage = listOfNotNull(r.website, r.registrationUrl).firstOrNull { it.startsWith("http") } ?: URL,
+        )
     }
 }

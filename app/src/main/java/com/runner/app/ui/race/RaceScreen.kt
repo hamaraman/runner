@@ -83,7 +83,14 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
     val container = rememberContainer()
     val races by container.races.state.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
-    var picking by remember { mutableStateOf(false) }
+    // 탭 화면이 계속 살아 있어서 앱을 켠 동안 한 번만 불러온다
+    var calendarTry by remember { mutableStateOf(0) }
+    val calendar by produceState<Result<List<CalendarRace>>?>(null, calendarTry) {
+        value = null
+        value = withContext(Dispatchers.IO) { runCatching { RaceCalendar.fetch() } }
+    }
+    var query by remember { mutableStateOf("") }
+    var distanceFilter by remember { mutableStateOf<RaceDistance?>(null) }
     var prefill by remember { mutableStateOf<CalendarRace?>(null) }
     var deleting by remember { mutableStateOf<Race?>(null) }
 
@@ -92,20 +99,7 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item {
-                InfoCard("나가고 싶은 대회를 등록하면 D-day를 보여주고, 그 날짜에 맞춘 훈련 계획을 바로 만들 수 있어요. 일정과 접수 기간은 반드시 주최 측 공지로 확인하세요.")
-            }
-            item {
-                OutlinedButton(onClick = { picking = true }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.Link, null, Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("전국 마라톤 일정에서 고르기")
-                }
-            }
-            item { SectionTitle("다가오는 대회") }
-            if (upcoming.isEmpty()) {
-                item { EmptyState("등록된 대회가 없어요. 오른쪽 아래 버튼으로 추가해보세요.") }
-            }
+            if (upcoming.isNotEmpty()) item { SectionTitle("내 대회") }
             items(upcoming, key = { it.id }) { r ->
                 RaceCard(
                     r,
@@ -122,6 +116,49 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
                     RaceCard(r, onMakePlan = null, onToggleRegistered = null, onDelete = { deleting = r })
                 }
             }
+            item { SectionTitle("전국 대회 일정") }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextInput("대회 이름·장소 검색", query, { query = it })
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(distanceFilter == null, { distanceFilter = null }, { Text("전체") })
+                        RaceDistance.entries.forEach { d ->
+                            FilterChip(distanceFilter == d, { distanceFilter = if (distanceFilter == d) null else d }, { Text(d.label) })
+                        }
+                    }
+                }
+            }
+            val list = calendar?.getOrNull()
+            when {
+                calendar == null -> item { Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() } }
+                list.isNullOrEmpty() -> item {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("일정을 불러오지 못했어요", style = MaterialTheme.typography.bodyMedium)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { calendarTry++ }) { Text("다시 시도") }
+                            OutlinedButton(onClick = { openUrl(context, RaceCalendar.URL) }) { Text("저스트런 열기") }
+                        }
+                    }
+                }
+                else -> {
+                    val added = races.map { it.name to it.dateEpochDay }.toSet()
+                    val shown = list.filter {
+                        (query.isBlank() || query in it.name || query in it.place) && (distanceFilter == null || it.distance == distanceFilter)
+                    }
+                    if (shown.isEmpty()) item { EmptyState("조건에 맞는 대회가 없어요") }
+                    items(shown, key = { "cal-" + it.no }) { r ->
+                        CalendarRow(r, added = (r.name to r.date.toEpochDay()) in added) { prefill = r; adding = true }
+                    }
+                    item {
+                        Text(
+                            "일정 제공: 저스트런 (justrun.co.kr)",
+                            Modifier.fillMaxWidth().clickable { openUrl(context, RaceCalendar.URL) }.padding(8.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
             item { Box(Modifier.padding(40.dp)) }
         }
         ExtendedFloatingActionButton(
@@ -132,29 +169,26 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
         )
     }
 
-    if (picking) {
-        CalendarPicker(onDismiss = { picking = false }) {
-            prefill = it
-            picking = false
-            adding = true
-        }
-    }
     if (adding) {
         RaceDialog(prefill, onDismiss = { adding = false; prefill = null }) { race ->
-            container.races.update { it + race }
+            val planned = container.addRace(race)
             adding = false
             prefill = null
-            Toast.makeText(context, "대회를 추가했어요", Toast.LENGTH_SHORT).show()
+            val msg = if (planned != null) "대회를 추가하고 '${planned.name}' 훈련 계획을 만들었어요" else "대회를 추가했어요"
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         }
     }
     deleting?.let { race ->
         AlertDialog(
             onDismissRequest = { deleting = null },
             title = { Text("'${race.name}'을(를) 삭제할까요?") },
+            text = container.plan.value?.takeIf { it.raceDateEpochDay == race.dateEpochDay && it.raceName == race.name }
+                ?.let { { Text("이 대회로 만든 훈련 계획도 함께 삭제돼요.") } },
             confirmButton = {
                 TextButton(onClick = {
-                    container.races.update { list -> list.filterNot { it.id == race.id } }
+                    val planned = container.deleteRace(race)
                     deleting = null
+                    if (planned != null) Toast.makeText(context, "훈련 계획을 '${planned.name}'에 맞춰 다시 만들었어요", Toast.LENGTH_LONG).show()
                 }) { Text("삭제", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text("취소") } },
@@ -274,48 +308,23 @@ private fun RaceDialog(initial: CalendarRace?, onDismiss: () -> Unit, onSave: (R
     )
 }
 
-/** 마라톤온라인 일정표를 앱 안에서 보여주고 고르게 한다. 못 불러오면 사이트로 보낸다. */
+/** 전국 대회 일정의 한 줄. 누르면 내용이 채워진 대회 추가 창이 뜬다. */
 @Composable
-private fun CalendarPicker(onDismiss: () -> Unit, onPick: (CalendarRace) -> Unit) {
-    val context = LocalContext.current
-    val result by produceState<Result<List<CalendarRace>>?>(null) {
-        value = withContext(Dispatchers.IO) { runCatching { RaceCalendar.fetch() } }
-    }
-    var query by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("전국 마라톤 일정") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val races = result?.getOrNull()
-                when {
-                    result == null -> Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
-                    races.isNullOrEmpty() -> {
-                        Text("일정을 불러오지 못했어요. 사이트에서 직접 확인해주세요.")
-                        OutlinedButton(onClick = { openUrl(context, RaceCalendar.URL) }) { Text("마라톤온라인 열기") }
-                    }
-                    else -> {
-                        TextInput("대회 이름·장소 검색", query, { query = it })
-                        val shown = races.filter { query.isBlank() || query in it.name || query in it.place }
-                        LazyColumn(Modifier.heightIn(max = 400.dp)) {
-                            items(shown) { r ->
-                                Column(Modifier.fillMaxWidth().clickable { onPick(r) }.padding(vertical = 10.dp)) {
-                                    Text(r.name, style = MaterialTheme.typography.titleSmall)
-                                    Text(
-                                        "${r.date.format(FullDateFmt)} · ${r.place}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Text(r.courses, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                HorizontalDivider()
-                            }
-                        }
-                    }
-                }
+private fun CalendarRow(r: CalendarRace, added: Boolean, onClick: () -> Unit) {
+    SoftCard(Modifier.clickable(enabled = !added, onClick = onClick)) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(r.name, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    r.date.format(FullDateFmt) + if (r.place.isNotBlank()) " · ${r.place}" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (r.courses.isNotBlank()) Text(r.courses, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("닫기") } },
-    )
+            Spacer(Modifier.width(8.dp))
+            if (added) StatusPill("추가됨", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+            else Icon(Icons.Filled.Add, "추가", tint = MaterialTheme.colorScheme.primary)
+        }
+    }
 }

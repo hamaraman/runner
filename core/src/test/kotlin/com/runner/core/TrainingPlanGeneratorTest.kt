@@ -61,4 +61,16 @@ class TrainingPlanGeneratorTest {
             TrainingPlanGenerator.Input(RaceDistance.FIVE_K, today.minusDays(1), today, 10.0, 3),
         )
     }
+
+    @Test fun autoTargetPicksEarliestUpcomingRace() {
+        fun race(id: String, days: Long) = Race(id, id, today.plusDays(days).toEpochDay(), RaceDistance.TEN_K)
+        val races = listOf(race("late", 60), race("past", -3), race("soon", 30))
+        assertEquals("soon", TrainingPlanGenerator.autoTarget(races, null, today)?.id)
+        // 더 늦은 대회를 향한 계획은 먼저 열리는 대회로 바꾼다
+        assertEquals("soon", TrainingPlanGenerator.autoTarget(races, plan(RaceDistance.TEN_K, 60), today)?.id)
+        // 이미 가장 이른 대회(또는 더 이른 대회)를 향한 계획은 그대로 둔다
+        assertEquals(null, TrainingPlanGenerator.autoTarget(races, plan(RaceDistance.TEN_K, 30), today))
+        assertEquals(null, TrainingPlanGenerator.autoTarget(races, plan(RaceDistance.TEN_K, 20), today))
+        assertEquals(null, TrainingPlanGenerator.autoTarget(listOf(race("past", -3)), null, today))
+    }
 }

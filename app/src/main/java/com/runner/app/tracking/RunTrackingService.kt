@@ -187,7 +187,7 @@ class RunTrackingService : Service() {
         if (save && intervalSteps != null && intervalIndex == intervalSteps!!.size) advanceIntervalSession()
         intervalSteps = null
         if (save && snap.status != TrackingStatus.IDLE && (durationSec >= 60 || snap.distanceM >= 50)) {
-            container.saveRun(
+            val newBests = container.saveRun(
                 RunRecord(
                     id = runId,
                     startedAtMs = snap.startedAtMs,
@@ -197,6 +197,7 @@ class RunTrackingService : Service() {
                 ),
             )
             say(VoiceText.finish(snap.distanceM, durationSec, Pace.secPerKm(snap.distanceM, durationSec)))
+            if (newBests.isNotEmpty()) say("축하해요! ${newBests.joinToString(", ")} 개인 최고 기록을 세웠어요.")
         }
         TrackingState.mutable.value = TrackingSnapshot()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)

@@ -35,10 +35,9 @@ import com.runner.app.R
 
 private class AdColors(val surface: Int, val fg: Int, val muted: Int, val accent: Int, val onAccent: Int)
 
-/** 목록 사이에 다른 카드처럼 섞이는 네이티브 광고. 로드 전·실패 시 아무것도 그리지 않는다. */
-// ponytail: LazyColumn에서 화면 밖으로 나가면 다시 로드됨, 광고를 여러 곳에 넣게 되면 화면 단위로 끌어올릴 것
+/** 네이티브 광고 하나를 불러와 들고 있는다. 탭을 오갈 때마다 다시 로드하지 않게 화면보다 위(내비게이션)에서 부른다. */
 @Composable
-fun NativeAdCard(modifier: Modifier = Modifier) {
+fun rememberNativeAd(): NativeAd? {
     val ctx = LocalContext.current
     val unitId = stringResource(R.string.admob_native_id)
     var ad by remember { mutableStateOf<NativeAd?>(null) }
@@ -51,7 +50,12 @@ fun NativeAdCard(modifier: Modifier = Modifier) {
             .loadAd(AdRequest.Builder().build())
         onDispose { disposed = true; ad?.destroy(); ad = null }
     }
-    val loaded = ad ?: return
+    return ad
+}
+
+/** 목록 사이에 다른 카드처럼 섞이는 네이티브 광고. */
+@Composable
+fun NativeAdCard(loaded: NativeAd, modifier: Modifier = Modifier) {
     val c = MaterialTheme.colorScheme
     val colors = AdColors(
         c.surfaceContainerLow.toArgb(), c.onSurface.toArgb(), c.onSurfaceVariant.toArgb(), c.primary.toArgb(), c.onPrimary.toArgb(),

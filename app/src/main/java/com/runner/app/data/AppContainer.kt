@@ -10,6 +10,7 @@ import com.runner.core.CoachSettings
 import com.runner.core.Crew
 import com.runner.core.CrewEvent
 import com.runner.core.Race
+import com.runner.core.Records
 import com.runner.core.RunRecord
 import com.runner.core.Shoe
 import com.runner.core.TrainingPlan
@@ -30,6 +31,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.builtins.nullable
 
 /** 앱 전역 의존성 모음(수동 DI). */
@@ -47,13 +49,15 @@ class AppContainer(context: Context) {
     val events = JsonStore(File(dir, "events.json"), ListSerializer(CrewEvent.serializer()), emptyList(), scope)
     val coach = JsonStore(File(dir, "coach.json"), CoachSettings.serializer(), CoachSettings(), scope)
     val shoes = JsonStore(File(dir, "shoes.json"), ListSerializer(Shoe.serializer()), emptyList(), scope)
+    /** 주간 목표 거리(km). 0이면 목표 없음. */
+    val weeklyGoalKm = JsonStore(File(dir, "goal.json"), Double.serializer(), 0.0, scope)
     /** 진행 중인 러닝의 임시 저장본. 앱이 강제 종료돼도 다음 실행 때 살릴 수 있게 한다. */
     val draft = JsonStore(File(dir, "draft.json"), RunRecord.serializer().nullable, null, scope)
 
     /** 백업에 넣는 저장소. 진행 중 러닝(draft)은 뺀다. */
     private val backupStores = mapOf(
         "runs.json" to runs, "plan.json" to plan, "races.json" to races, "crews.json" to crews,
-        "events.json" to events, "coach.json" to coach, "shoes.json" to shoes,
+        "events.json" to events, "coach.json" to coach, "shoes.json" to shoes, "goal.json" to weeklyGoalKm,
     )
 
     /** 모든 기록과 신발 사진을 zip 하나로 쓴다. IO 스레드에서 부를 것. */
@@ -91,13 +95,15 @@ class AppContainer(context: Context) {
         apply.forEach { it() }
     }
 
-    /** 러닝을 저장하고 훈련표에 반영한다(같은 날 없으면 같은 주 미완료 운동). */
-    fun saveRun(run: RunRecord) {
+    /** 러닝을 저장하고 훈련표에 반영한다(같은 날 없으면 같은 주 미완료 운동). 새로 깬 개인 기록 이름을 돌려준다. */
+    fun saveRun(run: RunRecord): List<String> {
+        val newBests = Records.newBests(run, runs.value)
         val shoeId = run.shoeId ?: shoes.value.firstOrNull { !it.retired }?.id
         runs.update { listOf(run.copy(shoeId = shoeId)) + it }
         scope.launch { HealthSync.write(appContext, listOf(run)) }
         val day = Instant.ofEpochMilli(run.startedAtMs).atZone(ZoneId.systemDefault()).toLocalDate()
         plan.update { it?.markRun(day.toEpochDay()) }
+        return newBests
     }
 
     /** 새 훈련 계획을 저장하면서, 지금까지의 러닝 기록을 반영한다. */

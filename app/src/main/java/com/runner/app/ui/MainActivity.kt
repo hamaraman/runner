@@ -19,6 +19,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.activity.compose.BackHandler
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
@@ -27,12 +35,9 @@ import com.google.android.gms.ads.MobileAds
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.runner.app.CrashReport
@@ -100,16 +105,24 @@ private val tabs = listOf(
 @Composable
 private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
     val nav = rememberNavController()
-    val entry by nav.currentBackStackEntryAsState()
-    val current = entry?.destination?.route.orEmpty()
+    val ad = if (adsReady) rememberNativeAd() else null
+    // 탭 화면은 Pager에 계속 살려둔다. 탭마다 화면을 새로 만들면 첫 프레임이 길어 전환이 끊긴다.
+    val pager = rememberPagerState { tabs.size }
+    val scope = rememberCoroutineScope()
+    var planRequest by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    fun goTab(page: Int) {
+        nav.popBackStack("main", inclusive = false)
+        scope.launch { pager.scrollToPage(page) }
+    }
+    BackHandler(pager.currentPage != 0) { goTab(0) }
 
     Scaffold(
         bottomBar = {
             NavigationBar {
-                tabs.forEach { tab ->
+                tabs.forEachIndexed { i, tab ->
                     NavigationBarItem(
-                        selected = current.substringBefore("?").substringBefore("/") == tab.route,
-                        onClick = { nav.goTab(tab.route) },
+                        selected = pager.currentPage == i,
+                        onClick = { goTab(i) },
                         icon = { Icon(tab.icon(), contentDescription = tab.label) },
                         label = { Text(tab.label) },
                     )
@@ -119,34 +132,29 @@ private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
     ) { padding ->
         NavHost(
             nav,
-            startDestination = "run",
+            startDestination = "main",
             modifier = Modifier.padding(padding),
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None },
         ) {
-            composable("run") {
-                RunScreen(onOpenRun = { id -> nav.navigate("run/$id") }, onOpenAllRoutes = { nav.navigate("routes") }, onOpenShoes = { nav.goTab("shoes") }, onPrivacyOptions = onPrivacyOptions, adsReady = adsReady)
+            composable("main") {
+                HorizontalPager(pager, userScrollEnabled = false, beyondViewportPageCount = tabs.size - 1, key = { it }) { page ->
+                    when (page) {
+                        0 -> RunScreen(onOpenRun = { id -> nav.navigate("run/$id") }, onOpenAllRoutes = { nav.navigate("routes") }, onOpenShoes = { goTab(2) }, onPrivacyOptions = onPrivacyOptions, ad = ad)
+                        // 대회에서 '훈련표 만들기'를 누를 때마다 새 폼으로 열리게 요청 번호로 키를 준다
+                        1 -> key(planRequest) { PlanScreen(raceId = planRequest?.second) }
+                        2 -> ShoesScreen()
+                        else -> RaceScreen(onMakePlan = { raceId ->
+                            planRequest = (planRequest?.first ?: 0) + 1 to raceId
+                            goTab(1)
+                        })
+                    }
+                }
             }
             composable("routes") { AllRoutesScreen(onBack = { nav.popBackStack() }) }
             composable("run/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {
                 RunDetailScreen(id = it.arguments?.getString("id").orEmpty(), onBack = { nav.popBackStack() })
             }
-            composable(
-                "plan?raceId={raceId}",
-                arguments = listOf(navArgument("raceId") { type = NavType.StringType; nullable = true; defaultValue = null }),
-            ) {
-                PlanScreen(raceId = it.arguments?.getString("raceId"))
-            }
-            composable("shoes") { ShoesScreen() }
-            composable("race") {
-                RaceScreen(onMakePlan = { raceId -> nav.goTab("plan?raceId=$raceId") })
-            }
         }
     }
-}
-
-private fun NavHostController.goTab(route: String) = navigate(route) {
-    popUpTo(graph.findStartDestination().id) { saveState = true }
-    launchSingleTop = true
-    restoreState = !route.contains("?")
 }

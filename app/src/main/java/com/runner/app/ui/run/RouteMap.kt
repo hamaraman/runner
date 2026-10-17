@@ -40,7 +40,7 @@ private fun dp(v: Int) = (v * android.content.res.Resources.getSystem().displayM
  */
 @SuppressLint("ClickableViewAccessibility")
 @Composable
-fun RouteMap(points: List<TrackPoint>, modifier: Modifier = Modifier, follow: Boolean = false, markers: Boolean = true) {
+fun RouteMap(points: List<TrackPoint>, modifier: Modifier = Modifier, follow: Boolean = false, markers: Boolean = true, joinSegments: Boolean = true) {
     val context = LocalContext.current
     val lineColor = ROUTE_BLUE
     // 지도는 비동기로 준비된다. 준비 전 들어온 points는 준비되는 순간 다시 그린다.
@@ -50,7 +50,7 @@ fun RouteMap(points: List<TrackPoint>, modifier: Modifier = Modifier, follow: Bo
             onCreate(null)
             getMapAsync { map ->
                 state.map = map
-                state.draw(state.lastPoints, lineColor, follow, markers)
+                state.draw(state.lastPoints, lineColor, follow, markers, joinSegments)
             }
             // 스크롤 목록 안에서도 지도 드래그가 먹히도록
             setOnTouchListener { v, _ ->
@@ -80,7 +80,7 @@ fun RouteMap(points: List<TrackPoint>, modifier: Modifier = Modifier, follow: Bo
 
     AndroidView(factory = { mapView }, modifier = modifier, update = {
         state.lastPoints = points
-        state.draw(points, lineColor, follow, markers)
+        state.draw(points, lineColor, follow, markers, joinSegments)
     })
 }
 
@@ -90,14 +90,17 @@ private class MapState {
     private var fitted = false
     private val overlays = mutableListOf<Overlay>()
 
-    fun draw(points: List<TrackPoint>, lineColor: Int, follow: Boolean, markers: Boolean) {
+    /** [joinSegments]가 false면 segment마다 선을 따로 그린다(서로 다른 러닝을 겹쳐 볼 때). */
+    fun draw(points: List<TrackPoint>, lineColor: Int, follow: Boolean, markers: Boolean, joinSegments: Boolean) {
         val map = map ?: return
         overlays.forEach { it.map = null }
         overlays.clear()
         val geo = points.map { LatLng(it.lat, it.lng) }
         // 일시정지 전후도 한 선으로 잇고, 멈춘 자리(segment가 바뀌기 직전 점)에 마커를 단다 (PathOverlay는 2점 이상 필요)
-        if (geo.size >= 2) {
-            overlays += PathOverlay(geo).apply {
+        val paths = if (joinSegments) listOf(geo)
+            else points.indices.groupBy { points[it].segment }.values.map { idx -> idx.map(geo::get) }
+        paths.filter { it.size >= 2 }.forEach { path ->
+            overlays += PathOverlay(path).apply {
                 // 네비게이션처럼 굵은 파란 선 + 진한 테두리 + 진행 방향 화살표 (px 단위라 dp로 환산)
                 color = lineColor
                 width = dp(10)

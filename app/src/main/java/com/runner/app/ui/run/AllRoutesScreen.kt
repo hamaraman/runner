@@ -33,6 +33,6 @@ fun AllRoutesScreen(onBack: () -> Unit) {
             windowInsets = WindowInsets(0),
             navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로") } },
         )
-        RouteMap(points, Modifier.fillMaxSize(), markers = false)
+        RouteMap(points, Modifier.fillMaxSize(), markers = false, joinSegments = false)
     }
 }

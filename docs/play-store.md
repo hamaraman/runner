@@ -7,9 +7,9 @@
 | 항목 | 위치 |
 |---|---|
 | 업로드할 AAB | GitHub 릴리스의 `runner-<버전>.aab` (태그를 올리면 자동 생성) |
-| 앱 아이콘 512×512 | 바탕화면 `러너 Play 스토어/play_icon_512.png` |
-| 그래픽 이미지 1024×500 | 바탕화면 `러너 Play 스토어/feature_1024x500.png` |
-| 휴대전화 스크린샷 | 바탕화면 `러너 Play 스토어/store_1~4_*.png` |
+| 앱 아이콘 512×512 | `store/icon_512.png` |
+| 그래픽 이미지 1024×500 | `store/feature_1024x500.png` |
+| 휴대전화 스크린샷 1080×1920 | `store/screenshots/01~05_*.png` |
 | 개인정보처리방침 URL | https://hamaraman.github.io/runner/privacy.html |
 | 패키지 이름 | `io.github.hamaraman.runner` (첫 업로드 후 변경 불가) |
 

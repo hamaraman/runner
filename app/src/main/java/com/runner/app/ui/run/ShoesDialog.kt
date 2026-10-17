@@ -1,5 +1,6 @@
 package com.runner.app.ui.run
 
+import androidx.compose.material3.RadioButton
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -297,6 +298,59 @@ private const val NAME_MAX = 20
 
 /** 보통 600~800km에서 교체를 권한다. */
 private const val DEFAULT_LIMIT_KM = 700.0
+
+/**
+ * 러닝화 고르기 창. [allowNone]이면 '선택 안 함'도 고를 수 있다.
+ * 등록된 신발이 없거나 새로 등록하려면 [onRegister]로 러닝화 탭에 보낸다.
+ */
+@Composable
+fun ShoePickerDialog(
+    title: String,
+    selectedId: String?,
+    allowNone: Boolean,
+    onPick: (Shoe?) -> Unit,
+    onRegister: () -> Unit,
+    onDismiss: () -> Unit,
+    message: String? = null,
+) {
+    val container = rememberContainer()
+    val shoes by container.shoes.state.collectAsStateWithLifecycle()
+    val runs by container.runs.state.collectAsStateWithLifecycle()
+    val active = shoes.filter { !it.retired }
+    @Composable
+    fun Option(selected: Boolean, onClick: () -> Unit, content: @Composable () -> Unit) {
+        Row(
+            Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable(onClick = onClick).padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RadioButton(selected = selected, onClick = onClick)
+            content()
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp)) }
+                if (active.isEmpty()) Text("등록된 러닝화가 없어요. 러닝화를 등록하면 달린 거리가 자동으로 쌓여요.")
+                active.forEach { shoe ->
+                    Option(shoe.id == selectedId, { onPick(shoe) }) {
+                        ShoePhoto(container.shoePhoto(shoe), 40.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(shoe.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("%.1f km".format(shoe.totalKm(runs)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                if (allowNone && active.isNotEmpty()) Option(selectedId == null, { onPick(null) }) { Text("선택 안 함") }
+            }
+        },
+        confirmButton = { TextButton(onClick = onRegister) { Text("러닝화 등록") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("닫기") } },
+    )
+}
 
 /** 기록에 붙은 신발을 바꾸는 줄. 누르면 다음 신발(마지막 다음은 없음)로 넘어간다. */
 @Composable

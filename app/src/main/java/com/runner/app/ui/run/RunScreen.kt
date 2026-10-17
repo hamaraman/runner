@@ -109,6 +109,8 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
     var confirmStop by remember { mutableStateOf(false) }
     var showCoachSettings by remember { mutableStateOf(false) }
     var showGoal by remember { mutableStateOf(false) }
+    var pickingShoe by remember { mutableStateOf(false) }
+    val justSaved by container.justSaved.collectAsStateWithLifecycle()
     var restoreUri by remember { mutableStateOf<Uri?>(null) }
     val scope = rememberCoroutineScope()
     // 전체 백업: 시스템 저장 창으로 zip을 내보내고, 고른 zip으로 통째로 되돌린다
@@ -238,7 +240,7 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
                                 Spacer(Modifier.height(6.dp))
                                 Text("코칭 설정", style = MaterialTheme.typography.titleMedium)
                             }
-                            ShoeTile(shoes.firstOrNull { !it.retired }, runs, Modifier.weight(1f).fillMaxHeight(), onOpenShoes)
+                            ShoeTile(shoes.firstOrNull { !it.retired }, runs, Modifier.weight(1f).fillMaxHeight()) { pickingShoe = true }
                         }
                         Spacer(Modifier.height(12.dp))
                     }
@@ -304,6 +306,29 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
                 container.coach.update { updated }
                 showCoachSettings = false
             },
+        )
+    }
+
+    if (pickingShoe) {
+        ShoePickerDialog(
+            title = "러닝화 선택",
+            selectedId = shoes.firstOrNull { !it.retired }?.id,
+            allowNone = false,
+            onPick = { shoe -> shoe?.let { container.selectShoe(it.id) }; pickingShoe = false },
+            onRegister = { pickingShoe = false; onOpenShoes() },
+            onDismiss = { pickingShoe = false },
+        )
+    }
+    // 러닝을 마치면 신은 러닝화를 확인받는다. 시작 전에 깜빡 못 골랐어도 여기서 바로잡는다.
+    justSaved?.takeIf { !active }?.let { runId ->
+        ShoePickerDialog(
+            title = "오늘 신은 러닝화",
+            message = "이 러닝에 신은 러닝화를 골라주세요.",
+            selectedId = runs.firstOrNull { it.id == runId }?.shoeId,
+            allowNone = true,
+            onPick = { shoe -> container.setRunShoe(runId, shoe?.id); container.justSaved.value = null },
+            onRegister = { container.justSaved.value = null; onOpenShoes() },
+            onDismiss = { container.justSaved.value = null },
         )
     }
 
@@ -514,7 +539,7 @@ private fun ShoeTile(shoe: Shoe?, runs: List<RunRecord>, modifier: Modifier, onC
     Tile(modifier, onClick) {
         if (shoe == null) {
             Text("러닝화", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("등록하기", style = MaterialTheme.typography.titleMedium)
+            Text("선택하기", style = MaterialTheme.typography.titleMedium)
             return@Tile
         }
         val km = shoe.totalKm(runs)

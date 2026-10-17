@@ -52,6 +52,8 @@ class AppContainer(context: Context) {
     val shoes = JsonStore(File(dir, "shoes.json"), ListSerializer(Shoe.serializer()), emptyList(), scope)
     /** 주간 목표 거리(km). 0이면 목표 없음. */
     val weeklyGoalKm = JsonStore(File(dir, "goal.json"), Double.serializer(), 0.0, scope)
+    /** 방금 저장한 러닝 id. 러닝 화면이 신은 러닝화를 확인받고 비운다. 저장하지 않는다. */
+    val justSaved = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     /** 진행 중인 러닝의 임시 저장본. 앱이 강제 종료돼도 다음 실행 때 살릴 수 있게 한다. */
     val draft = JsonStore(File(dir, "draft.json"), RunRecord.serializer().nullable, null, scope)
 
@@ -101,6 +103,7 @@ class AppContainer(context: Context) {
         val newBests = Records.newBests(run, runs.value)
         val shoeId = run.shoeId ?: shoes.value.firstOrNull { !it.retired }?.id
         runs.update { listOf(run.copy(shoeId = shoeId)) + it }
+        if (shoes.value.any { !it.retired }) justSaved.value = run.id
         scope.launch { HealthSync.write(appContext, listOf(run)) }
         val day = Instant.ofEpochMilli(run.startedAtMs).atZone(ZoneId.systemDefault()).toLocalDate()
         plan.update { it?.markRun(day.toEpochDay()) }

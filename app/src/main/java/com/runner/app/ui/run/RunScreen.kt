@@ -78,6 +78,12 @@ import com.runner.app.ui.millisToLocal
 import com.runner.app.ui.plan.label
 import com.runner.app.ui.rememberContainer
 import com.runner.core.Pace
+import com.runner.core.Records
+import com.runner.core.PersonalBests
+import androidx.compose.runtime.produceState
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import com.runner.core.RunRecord
 import com.runner.core.Shoe
 import com.runner.core.totalKm
@@ -92,7 +98,7 @@ import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
 @Composable
-fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenShoes: () -> Unit, onPrivacyOptions: (() -> Unit)? = null, adsReady: Boolean = false) {
+fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenShoes: () -> Unit, onPrivacyOptions: (() -> Unit)? = null, ad: com.google.android.gms.ads.nativead.NativeAd? = null) {
     val context = LocalContext.current
     val container = rememberContainer()
     val tracking by TrackingState.state.collectAsStateWithLifecycle()
@@ -102,6 +108,7 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
     val draft by container.draft.state.collectAsStateWithLifecycle()
     var confirmStop by remember { mutableStateOf(false) }
     var showCoachSettings by remember { mutableStateOf(false) }
+    var showGoal by remember { mutableStateOf(false) }
     var restoreUri by remember { mutableStateOf<Uri?>(null) }
     val scope = rememberCoroutineScope()
     // 전체 백업: 시스템 저장 창으로 zip을 내보내고, 고른 zip으로 통째로 되돌린다
@@ -116,6 +123,8 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
     }
     // Health Connect: 권한을 받으면 지금까지 기록도 한 번에 보낸다 (이후엔 저장할 때마다 자동)
     var healthLinked by remember { mutableStateOf(false) }
+    // PackageManager 조회라 매 recomposition마다 부르면 탭 전환이 끊긴다
+    val healthAvailable = remember { HealthSync.available(context) }
     LaunchedEffect(Unit) { healthLinked = HealthSync.granted(context) }
     val healthPermission = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
         healthLinked = granted.containsAll(HealthSync.permissions)
@@ -244,8 +253,12 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
             }
         }
         if (!active) {
-            item { WeeklySummary(runs) }
-            if (adsReady) item(key = "ad") { NativeAdCard() }
+            item {
+                val goal by container.weeklyGoalKm.state.collectAsStateWithLifecycle()
+                WeeklySummary(runs, goal) { showGoal = true }
+            }
+            if (runs.isNotEmpty()) item { BestsCard(runs) }
+            if (ad != null) item(key = "ad") { NativeAdCard(ad) }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     SectionTitle("기록")
@@ -262,7 +275,7 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
                     TextButton(onClick = { pickBackup.launch(arrayOf("application/zip", "application/octet-stream")) }) { Text("백업 불러오기") }
                 }
             }
-            if (HealthSync.available(context)) {
+            if (healthAvailable) {
                 item {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         // 이미 연동됐으면 권한 창 없이 바로 결과가 와서 전체 기록을 다시 보낸다
@@ -294,6 +307,27 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
         )
     }
 
+    if (showGoal) {
+        var text by remember { mutableStateOf(container.weeklyGoalKm.value.takeIf { it > 0 }?.let { "%.0f".format(it) } ?: "") }
+        AlertDialog(
+            onDismissRequest = { showGoal = false },
+            title = { Text("주간 목표 거리") },
+            text = {
+                OutlinedTextField(
+                    text, { text = it.filter(Char::isDigit).take(3) },
+                    label = { Text("km (비우면 목표 없음)") }, singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    container.weeklyGoalKm.update { text.toDoubleOrNull() ?: 0.0 }
+                    showGoal = false
+                }) { Text("저장") }
+            },
+            dismissButton = { TextButton(onClick = { showGoal = false }) { Text("취소") } },
+        )
+    }
 
     // 러닝 중 앱이 강제 종료돼 남은 임시 기록. 서비스가 돌고 있으면 진행 중인 기록이라 건드리지 않는다.
     draft?.takeIf { !active }?.let { d ->
@@ -395,7 +429,7 @@ private fun ControlButtons(
 }
 
 @Composable
-private fun WeeklySummary(runs: List<RunRecord>) {
+private fun WeeklySummary(runs: List<RunRecord>, goalKm: Double, onSetGoal: () -> Unit) {
     val today = LocalDate.now()
     val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     val thisWeek = runs.filter { !millisToLocal(it.startedAtMs).toLocalDate().isBefore(monday) }
@@ -404,9 +438,17 @@ private fun WeeklySummary(runs: List<RunRecord>) {
     val perDay = (0..6).map { d ->
         thisWeek.filter { millisToLocal(it.startedAtMs).toLocalDate() == monday.plusDays(d.toLong()) }.sumOf { it.distanceM } / 1000
     }
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+    val streak = Records.weekStreak(runs.map { millisToLocal(it.startedAtMs).toLocalDate() }, today)
+    Card(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable(onClick = onSetGoal),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
         Column(Modifier.padding(16.dp)) {
-            Text("이번 주", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("이번 주", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.weight(1f))
+                if (streak >= 2) Text("🔥 ${streak}주 연속", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            }
             Row(verticalAlignment = Alignment.Bottom) {
                 Text("%.1f".format(km), style = MaterialTheme.typography.displaySmall)
                 Text(" km", Modifier.padding(bottom = 6.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -416,8 +458,44 @@ private fun WeeklySummary(runs: List<RunRecord>) {
                     Text(Pace.formatDuration(sec), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            Spacer(Modifier.height(8.dp))
+            if (goalKm > 0) {
+                val done = km >= goalKm
+                LinearProgressIndicator(
+                    progress = { (km / goalKm).toFloat().coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().height(8.dp),
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    drawStopIndicator = {},
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (done) "목표 %.0f km 달성! 🎉".format(goalKm) else "목표 %.0f km까지 %.1f km 남았어요".format(goalKm, goalKm - km),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text("눌러서 주간 목표를 정해보세요", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Spacer(Modifier.height(12.dp))
             WeekBars(listOf("월", "화", "수", "목", "금", "토", "일"), perDay, today.dayOfWeek.value - 1)
+        }
+    }
+}
+
+/** 개인 최고 기록. GPS 경로가 없는 기록은 거리만 반영된다. */
+@Composable
+private fun BestsCard(runs: List<RunRecord>) {
+    // 모든 GPS 포인트를 훑는 계산이라 탭 전환 때 끊기지 않게 백그라운드에서 한다
+    val bests = produceState<PersonalBests?>(null, runs) { value = withContext(Dispatchers.Default) { Records.bests(runs) } }.value ?: return
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+        Column(Modifier.padding(16.dp)) {
+            Text("개인 최고 기록", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                StatBlock("최장", bests.longestM?.let { "%.1fkm".format(it / 1000) } ?: "-")
+                StatBlock("1km", bests.best1kSec?.let(Pace::formatDuration) ?: "-")
+                StatBlock("5km", bests.best5kSec?.let(Pace::formatDuration) ?: "-")
+                StatBlock("10km", bests.best10kSec?.let(Pace::formatDuration) ?: "-")
+            }
         }
     }
 }

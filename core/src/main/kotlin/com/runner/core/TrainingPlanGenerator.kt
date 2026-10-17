@@ -27,6 +27,17 @@ object TrainingPlanGenerator {
         val zones: PaceZones? = null,
     )
 
+    /**
+     * 자동으로 훈련표를 맞춰야 할 대회. 가장 먼저 열리는 다가오는 대회를 고른다.
+     * 지금 계획이 그보다 먼저 열리는(직접 만든) 대회를 향하고 있으면 건드리지 않는다.
+     */
+    fun autoTarget(races: List<Race>, plan: TrainingPlan?, today: LocalDate): Race? {
+        val day = today.toEpochDay()
+        val next = races.filter { it.dateEpochDay >= day }.minByOrNull { it.dateEpochDay } ?: return null
+        val planned = plan?.raceDateEpochDay ?: return next
+        return next.takeIf { planned < day || planned > next.dateEpochDay }
+    }
+
     fun generate(input: Input): TrainingPlan {
         require(!input.raceDate.isBefore(input.today)) { "대회 날짜가 이미 지났어요." }
         val runs = input.runsPerWeek.coerceIn(3, 6)

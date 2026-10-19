@@ -21,6 +21,19 @@
   .note { background: var(--accent-soft); border-radius: 12px; padding: 14px 18px; margin: 16px 0; }
   .q { border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin: 12px 0; }
   .q p { margin: 4px 0 0; }
+  figure { margin: 12px 0 20px; }
+  figure svg { width: 100%; max-width: 360px; display: block; }
+  figcaption { font-size: .85rem; color: var(--muted); margin-top: 4px; }
+  .s-bg { fill: #f7f7f9; stroke: var(--line); }
+  .s-box { fill: #fff; stroke: #d9dbe0; }
+  .s-hl { fill: var(--accent-soft); }
+  .s-btn { fill: #1a73e8; }
+  .s-ring { fill: none; stroke: var(--accent); stroke-width: 3; }
+  .s-t { font-size: 13px; fill: var(--text); }
+  .s-m { font-size: 12px; fill: var(--muted); }
+  .s-b { font-size: 15px; font-weight: 700; fill: var(--ink); }
+  .s-w { font-size: 13px; font-weight: 700; fill: #fff; }
+  .s-l { font-size: 14px; font-weight: 700; fill: #1a73e8; }
 </style>
 </head>
 <body>
@@ -30,9 +43,55 @@
 
   <h2>참여 순서</h2>
   <ol>
-    <li>받은 <b>Google 그룹 링크</b>를 Gmail로 로그인한 상태에서 열고 <b>"그룹 가입"</b>을 눌러요. (아래 "그룹 가입이 안 돼요" 참고)</li>
-    <li>받은 <b>테스트 참여 링크</b>를 <b>그룹에 가입한 계정으로 로그인한 상태</b>에서 열어요.</li>    <li><b>"테스터 되기"</b>를 눌러요.</li>
-    <li>같은 페이지의 <b>"Google Play에서 다운로드"</b>로 앱을 설치해요.</li>
+    <li>받은 <b>Google 그룹 링크</b>를 Gmail로 로그인한 상태에서 열고 <b>"그룹 가입"</b>을 눌러요. 휴대폰이면 먼저 크롬 메뉴(⋮)에서 <b>"데스크톱 사이트"</b>를 켜 주세요.
+      <figure>
+        <svg viewBox="0 0 320 200" role="img" aria-label="크롬 메뉴에서 데스크톱 사이트 체크">
+          <rect x="1" y="1" width="318" height="198" rx="14" class="s-bg"/>
+          <rect x="16" y="14" width="250" height="28" rx="14" class="s-box"/><text x="30" y="33" class="s-t">groups.google.com/g/…</text>
+          <text x="290" y="34" class="s-b" text-anchor="middle">⋮</text><circle cx="290" cy="28" r="15" class="s-ring"/>
+          <rect x="150" y="54" width="160" height="134" rx="10" class="s-box"/>
+          <text x="166" y="80" class="s-t">새 탭</text><text x="166" y="108" class="s-t">기록</text><text x="166" y="136" class="s-t">공유</text>
+          <rect x="156" y="150" width="148" height="30" rx="8" class="s-hl"/>
+          <text x="166" y="170" class="s-b">데스크톱 사이트</text><rect x="276" y="157" width="16" height="16" rx="3" class="s-btn"/><text x="284" y="170" class="s-w" text-anchor="middle">✓</text>
+        </svg>
+        <figcaption>오른쪽 위 ⋮ → "데스크톱 사이트" 체크</figcaption>
+      </figure>
+      <figure>
+        <svg viewBox="0 0 320 170" role="img" aria-label="Google 그룹 페이지의 그룹 가입 버튼과 오른쪽 위 계정">
+          <rect x="1" y="1" width="318" height="168" rx="14" class="s-bg"/>
+          <text x="20" y="36" class="s-b">Google 그룹</text>
+          <circle cx="292" cy="30" r="13" class="s-btn"/><text x="292" y="35" class="s-w" text-anchor="middle">나</text><circle cx="292" cy="30" r="19" class="s-ring"/>
+          <text x="20" y="80" class="s-b">러너 테스터</text><text x="20" y="102" class="s-m">runner-testers@googlegroups.com</text>
+          <rect x="20" y="118" width="110" height="34" rx="17" class="s-btn"/><text x="75" y="140" class="s-w" text-anchor="middle">그룹 가입</text>
+          <rect x="14" y="112" width="122" height="46" rx="23" class="s-ring"/>
+        </svg>
+        <figcaption>"그룹 가입" 버튼. 안 보이면 오른쪽 위 계정이 맞는지 확인</figcaption>
+      </figure>
+    </li>
+    <li>받은 <b>테스트 참여 링크</b>를 <b>그룹에 가입한 계정으로 로그인한 상태</b>에서 열고 <b>"테스터 되기"</b>를 눌러요.
+      <figure>
+        <svg viewBox="0 0 320 170" role="img" aria-label="Google Play 테스트 참여 페이지의 테스터 되기 버튼">
+          <rect x="1" y="1" width="318" height="168" rx="14" class="s-bg"/>
+          <text x="20" y="36" class="s-b">Google Play</text>
+          <text x="20" y="76" class="s-b">러너 테스터 되기</text><text x="20" y="98" class="s-m">테스터가 되면 출시 전 버전을 받아요.</text>
+          <rect x="20" y="116" width="110" height="34" rx="8" class="s-btn"/><text x="75" y="138" class="s-w" text-anchor="middle">테스터 되기</text>
+          <rect x="14" y="110" width="122" height="46" rx="12" class="s-ring"/>
+        </svg>
+        <figcaption>"테스터 되기"를 눌러요</figcaption>
+      </figure>
+    </li>
+    <li>같은 페이지의 <b>"Google Play에서 다운로드"</b>로 앱을 설치해요.
+      <figure>
+        <svg viewBox="0 0 320 150" role="img" aria-label="테스터가 되었다는 안내와 Google Play에서 다운로드 링크">
+          <rect x="1" y="1" width="318" height="148" rx="14" class="s-bg"/>
+          <text x="20" y="44" class="s-b">✓ 테스터가 되었습니다</text>
+          <text x="20" y="72" class="s-m">반영까지 몇 분 걸릴 수 있어요.</text>
+          <text x="20" y="114" class="s-l">Google Play에서 다운로드</text>
+          <rect x="12" y="92" width="200" height="34" rx="8" class="s-ring"/>
+        </svg>
+        <figcaption>"Google Play에서 다운로드" → 설치</figcaption>
+      </figure>
+    </li>
     <li><b>14일 동안 삭제하지 말고</b> 가끔 열어 주세요. 그래야 테스터 인원에 잡혀요.</li>
   </ol>
 

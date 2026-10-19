@@ -18,8 +18,8 @@ android {
         applicationId = "io.github.hamaraman.runner"
         minSdk = 26
         targetSdk = 36
-        versionCode = 21
-        versionName = "0.6.2"
+        versionCode = 22
+        versionName = "0.6.3"
         // 네이버 지도 Client ID는 local.properties의 naverMapClientId (커밋 금지). 없으면 지도만 인증 실패로 안 뜬다.
         manifestPlaceholders["naverMapClientId"] = localProps.getProperty("naverMapClientId", "")
         // AdMob App ID는 local.properties의 admobAppId. 없으면 구글 공식 테스트 ID로 동작한다.
@@ -83,6 +83,7 @@ dependencies {
     implementation(libs.play.services.ads)
     implementation(libs.ump)
     implementation(libs.health.connect)
+    implementation(libs.play.app.update)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 }

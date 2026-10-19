@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -14,6 +16,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
 import com.runner.core.isNewerVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,15 +33,26 @@ private const val LATEST_RELEASE = "https://api.github.com/repos/hamaraman/runne
 
 private data class Release(val tag: String, val url: String)
 
-/** 앱 시작 시 GitHub 최신 릴리스를 확인해 새 버전이면 다이얼로그를 띄운다. Play 스토어 설치본은 Play가 업데이트하므로 건너뛴다. "나중에"는 하루 동안 다시 안 띄운다. 오프라인·실패는 조용히 무시. */
+/** 앱 시작 시 GitHub 최신 릴리스를 확인해 새 버전이면 다이얼로그를 띄운다. Play 스토어 설치본은 대신 Play 인앱 업데이트(즉시)를 띄운다. "나중에"는 하루 동안 다시 안 띄운다. 오프라인·실패는 조용히 무시. */
 @Composable
 fun UpdateCheck() {
     val context = LocalContext.current
     var release by remember { mutableStateOf<Release?>(null) }
     val prefs = remember { context.getSharedPreferences("update_check", Context.MODE_PRIVATE) }
     val later = { prefs.edit().putLong("laterAt", System.currentTimeMillis()).apply(); release = null }
+    val playLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {}
     LaunchedEffect(Unit) {
-        if (context.installedFromPlay()) return@LaunchedEffect
+        if (context.installedFromPlay()) {
+            val manager = AppUpdateManagerFactory.create(context)
+            manager.appUpdateInfo.addOnSuccessListener { info ->
+                val available = info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE ||
+                    info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS
+                if (available && info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)) {
+                    manager.startUpdateFlowForResult(info, playLauncher, AppUpdateOptions.defaultOptions(AppUpdateType.IMMEDIATE))
+                }
+            }
+            return@LaunchedEffect
+        }
         if (System.currentTimeMillis() - prefs.getLong("laterAt", 0) < 24 * 60 * 60 * 1000L) return@LaunchedEffect
         val latest = runCatching { fetchLatest() }.getOrNull() ?: return@LaunchedEffect
         if (isNewerVersion(latest.tag, context.versionName())) release = latest

@@ -3,6 +3,7 @@ package com.runner.app.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,7 +27,7 @@ private const val LATEST_RELEASE = "https://api.github.com/repos/hamaraman/runne
 
 private data class Release(val tag: String, val url: String)
 
-/** 앱 시작 시 GitHub 최신 릴리스를 확인해 새 버전이면 다이얼로그를 띄운다. "나중에"는 하루 동안 다시 안 띄운다. 오프라인·실패는 조용히 무시. */
+/** 앱 시작 시 GitHub 최신 릴리스를 확인해 새 버전이면 다이얼로그를 띄운다. Play 스토어 설치본은 Play가 업데이트하므로 건너뛴다. "나중에"는 하루 동안 다시 안 띄운다. 오프라인·실패는 조용히 무시. */
 @Composable
 fun UpdateCheck() {
     val context = LocalContext.current
@@ -34,6 +35,7 @@ fun UpdateCheck() {
     val prefs = remember { context.getSharedPreferences("update_check", Context.MODE_PRIVATE) }
     val later = { prefs.edit().putLong("laterAt", System.currentTimeMillis()).apply(); release = null }
     LaunchedEffect(Unit) {
+        if (context.installedFromPlay()) return@LaunchedEffect
         if (System.currentTimeMillis() - prefs.getLong("laterAt", 0) < 24 * 60 * 60 * 1000L) return@LaunchedEffect
         val latest = runCatching { fetchLatest() }.getOrNull() ?: return@LaunchedEffect
         if (isNewerVersion(latest.tag, context.versionName())) release = latest
@@ -51,6 +53,15 @@ fun UpdateCheck() {
         },
         dismissButton = { TextButton(onClick = later) { Text("나중에") } },
     )
+}
+
+@Suppress("DEPRECATION")
+private fun Context.installedFromPlay(): Boolean {
+    val installer = runCatching {
+        if (Build.VERSION.SDK_INT >= 30) packageManager.getInstallSourceInfo(packageName).installingPackageName
+        else packageManager.getInstallerPackageName(packageName)
+    }.getOrNull()
+    return installer == "com.android.vending"
 }
 
 private fun Context.versionName(): String = packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()

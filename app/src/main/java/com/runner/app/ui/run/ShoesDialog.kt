@@ -62,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.runner.app.ui.DateField
 import com.runner.app.ui.EmptyState
+import com.runner.app.ui.coachMarkTarget
 import com.runner.app.ui.NumberField
 import com.runner.app.ui.SectionTitle
 import com.runner.app.ui.SoftCard
@@ -106,7 +107,7 @@ private fun ShoesList(modifier: Modifier, onAdd: () -> Unit, onEdit: (Shoe) -> U
         SectionTitle("사용 중")
         if (active.isEmpty()) EmptyState("러닝화를 등록하면 달린 거리가 자동으로 쌓여요.")
         active.forEach { ShoeCard(it, runs, it.id == current, onSelect = { container.selectShoe(it.id) }) { onEdit(it) } }
-        Button(onClick = onAdd, Modifier.fillMaxWidth()) {
+        Button(onClick = onAdd, Modifier.fillMaxWidth().coachMarkTarget("coach_shoes_add")) {
             Icon(Icons.Filled.Add, null)
             Spacer(Modifier.width(6.dp))
             Text("러닝화 추가")

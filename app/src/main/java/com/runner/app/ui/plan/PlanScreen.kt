@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.style.TextDecoration
 import com.runner.app.ui.SoftCard
 import com.runner.app.ui.StatusPill
+import com.runner.app.ui.coachMarkTarget
 import com.runner.app.ui.theme.Eyebrow
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -183,7 +184,7 @@ private fun PlanForm(raceId: String?, hasExisting: Boolean, onCancel: () -> Unit
                     Toast.makeText(context, e.message ?: "입력값을 확인해주세요", Toast.LENGTH_SHORT).show()
                 }
             },
-            modifier = Modifier.fillMaxWidth().height(52.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp).coachMarkTarget("coach_plan_create"),
         ) { Text(if (hasExisting) "새 계획으로 바꾸기" else "훈련 계획 만들기") }
         if (hasExisting) {
             OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text("기존 계획 유지") }

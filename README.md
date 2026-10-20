@@ -1,6 +1,6 @@
 # 러너 (Runner)
 
-러닝 기록과 마라톤 대회 준비를 한 앱에서. Kotlin + Jetpack Compose. (v0.6.3)
+러닝 기록과 마라톤 대회 준비를 한 앱에서. Kotlin + Jetpack Compose. (v0.6.4)
 
 ## 기능
 

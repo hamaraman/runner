@@ -3,111 +3,67 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>러너 테스터 참여 안내</title>
-<meta name="description" content="러너 테스트에 참여하는 방법을 한 단계씩 쉽게 알려 드려요.">
+<title>러너 테스트 참여</title>
+<meta name="description" content="러너 앱 테스트에 참여하는 방법을 그림과 함께 쉽게 알려 드려요.">
 <link rel="icon" href="img/icon.png">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
-  :root { --ink: #1b1d26; --text: #333640; --muted: #6b707a; --line: #e2e3e8; --accent: #e85d0c; --accent-soft: #fff1e8; }
+  :root { --ink: #111; --text: #222; --line: #ddd; --accent: #e85d0c; --soft: #fff1e8; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; color: var(--text); background: #fff; font-size: 20px; line-height: 1.8; word-break: keep-all; }
-  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 16px 80px; }
-  h1 { color: var(--ink); font-size: 1.7rem; line-height: 1.4; margin: 0 0 12px; }
-  h2 { color: var(--ink); font-size: 1.35rem; margin: 48px 0 16px; }
-  p { margin: 8px 0; }
-  b { color: var(--ink); }
-  a { color: var(--accent); font-weight: 700; }
-  .note { background: var(--accent-soft); border-radius: 16px; padding: 18px 20px; margin: 20px 0; }
-  .step { border: 2px solid var(--line); border-radius: 16px; padding: 20px; margin: 20px 0; }
-  .num { display: inline-block; background: var(--accent); color: #fff; font-weight: 700; border-radius: 999px; padding: 2px 16px; margin-bottom: 8px; }
-  .step h3 { color: var(--ink); font-size: 1.25rem; margin: 0 0 8px; }
-  .btn { display: block; text-align: center; background: var(--accent); color: #fff; text-decoration: none; border-radius: 12px; padding: 16px; margin: 14px 0; font-size: 1.1rem; }
-  .press { background: #fff6c2; color: var(--ink); font-weight: 700; padding: 0 6px; border-radius: 6px; }
-  figure { margin: 14px 0; }
-  figure img { width: 100%; max-width: 480px; border: 2px solid var(--line); border-radius: 10px; display: block; }
-  figcaption { font-size: .9rem; color: var(--muted); margin-top: 6px; }
-  .q { border-top: 2px solid var(--line); padding: 16px 0; }
-  .q b:first-child { display: block; font-size: 1.1rem; }
+  body { margin: 0; font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; color: var(--text); background: #fff; font-size: 22px; line-height: 1.7; word-break: keep-all; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 28px 16px 80px; }
+  h1 { color: var(--ink); font-size: 1.6rem; margin: 0 0 8px; }
+  p { margin: 10px 0; }
+  .step { border-top: 3px solid var(--line); padding: 24px 0; }
+  .num { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+  .press { background: #ffe94d; color: var(--ink); font-weight: 700; padding: 0 8px; border-radius: 6px; white-space: nowrap; }
+  .btn { display: block; text-align: center; background: var(--accent); color: #fff; font-weight: 700; text-decoration: none; border-radius: 14px; padding: 18px; margin: 14px 0; }
+  img { width: 100%; max-width: 360px; border: 2px solid var(--line); border-radius: 10px; display: block; margin: 12px 0; }
+  .help { background: var(--soft); border-radius: 16px; padding: 20px; margin-top: 16px; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>러너 앱 테스트 참여 방법</h1>
-  <p>모두 <b>4단계</b>예요. 위에서부터 차례대로 따라 해 주세요.</p>
+  <h1>러너 앱 테스트 참여하기</h1>
+  <p>노란색 글자를 차례대로 누르면 돼요.</p>
 
-  <div class="note">
-    <b>시작하기 전에 꼭 확인하세요</b>
-    <p>✔ 개발자에게 알려 준 <b>Gmail 계정</b>으로 해야 해요.</p>
-    <p>✔ 카카오톡에서 링크를 눌렀다면, 링크를 꾹 눌러 <b>크롬</b>으로 열어 주세요.</p>
+  <div class="step">
+    <div class="num">1</div>
+    <p>아래 주황색 버튼을 누르세요.</p>
+    <a class="btn" href="https://groups.google.com/g/runnertesta">여기를 누르세요</a>
+    <p>빨간 동그라미 <span class="press">그룹 참여</span>를 누르세요. (<span class="press">초대 수락</span>으로 보일 수도 있어요)</p>
+    <img src="img/step1.png" alt="그룹 참여 버튼에 빨간 동그라미">  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <p>창이 뜨면 <span class="press">그룹 참여</span>를 한 번 더 누르세요.</p>
+    <img src="img/step2.png" alt="가입 창의 그룹 참여 버튼에 빨간 동그라미">
   </div>
 
   <div class="step">
-    <span class="num">1단계</span>
-    <h3>테스트 모임에 가입하기</h3>
-    <p>아래 버튼을 누르세요.</p>
-    <a class="btn" href="https://groups.google.com/g/runnertesta">모임 가입 페이지 열기</a>
-    <p>휴대폰이라면 먼저 화면 오른쪽 위 <b>점 세 개(⋮)</b>를 누르고 <span class="press">데스크톱 사이트</span>에 체크해 주세요. (삼성 인터넷은 <span class="press">데스크톱 버전으로 보기</span>)</p>
-    <p>그다음 제목 옆 <span class="press">초대 수락</span>을 누르세요.</p>
-    <figure><img src="img/tester_01_invite.png" alt="러너 테스트 모임 페이지. 제목 옆에 초대 수락 버튼"><figcaption>"권한이 없습니다"라는 글이 보여도 괜찮아요.</figcaption></figure>
-    <p>창이 뜨면 아무것도 바꾸지 말고 <span class="press">그룹 참여</span>를 누르세요.</p>
-    <figure><img src="img/tester_02_join.png" alt="가입 창. 오른쪽 아래 그룹 참여 버튼"></figure>
-    <p>제목 옆에 <b>"회원 ○명"</b>이 보이면 성공이에요.</p>
-    <figure><img src="img/tester_03_joined.png" alt="가입 완료 화면. 회원 수 표시"></figure>
+    <div class="num">3</div>
+    <p>아래 주황색 버튼을 누르세요.</p>
+    <a class="btn" href="https://play.google.com/apps/testing/io.github.hamaraman.runner">여기를 누르세요</a>
+    <p><span class="press">Become a tester</span>를 누르세요.</p>
+    <img src="img/step3.png" alt="Become a tester 버튼에 빨간 동그라미">
   </div>
 
   <div class="step">
-    <span class="num">2단계</span>
-    <h3>테스터 신청하기</h3>
-    <p>개발자에게 받은 <b>테스트 참여 링크</b>를 여세요.</p>
-    <p><span class="press">테스터 되기</span>를 누르세요. 영어로 나오면 <span class="press">Become a tester</span>예요.</p>
-    <figure><img src="img/tester_04_become.png" alt="Google Play 테스트 참여 페이지. Become a tester 버튼"></figure>
+    <div class="num">4</div>
+    <p>빨간 동그라미 <span class="press">Install the public version on Google Play.</span>를 누르세요.</p>
+    <img src="img/step4.png" alt="Install the public version on Google Play 글자에 빨간 동그라미">
+    <p>Play 스토어에서 <span class="press">설치</span>를 누르세요.</p>
   </div>
 
   <div class="step">
-    <span class="num">3단계</span>
-    <h3>앱 설치하기</h3>
-    <p><b>"You are a tester"</b>라는 글이 나오면 신청 완료예요.</p>
-    <p>같은 화면 아래쪽에서 <span class="press">Install the public version on Google Play.</span> 글자를 누르세요.</p>
-    <p>Play 스토어가 열리면 <span class="press">설치</span>를 누르세요.</p>
-    <figure><img src="img/tester_05_download.png" alt="You are a tester 표시와 Install the public version on Google Play 링크"></figure>
+    <div class="num">5</div>
+    <p><b>2주 동안 앱을 지우지 마세요.</b></p>
+    <p>끝! 감사합니다 🙏</p>
   </div>
 
-  <div class="step">
-    <span class="num">4단계</span>
-    <h3>14일 동안 지우지 않기</h3>
-    <p>앱을 <b>14일 동안 지우지 마시고</b>, 가끔 한 번씩 열어 주세요.</p>
-    <p>이걸로 끝이에요. 도와주셔서 감사합니다!</p>
+  <div class="help">
+    <p><b>잘 안 되나요?</b></p>
+    <p>막힌 화면을 사진(캡처)으로 찍어서 개발자에게 보내 주세요. 바로 도와드릴게요.</p>
   </div>
-
-  <h2>잘 안 될 때</h2>
-
-  <div class="q"><b>"초대 수락" 버튼이 안 보여요</b>
-    <p>다른 Gmail로 로그인되어 있을 수 있어요. 화면 오른쪽 위 동그란 사진(프로필)을 눌러, 개발자에게 알려 준 Gmail인지 확인해 주세요.</p>
-    <p>휴대폰이라면 <span class="press">데스크톱 사이트</span>를 켰는지도 확인해 주세요.</p>
-  </div>
-
-  <div class="q"><b>"가입 요청을 보냈습니다"라고 나와요</b>
-    <p>괜찮아요. 개발자가 승인하면 가입돼요. 조금 기다렸다가 2단계를 해 주세요.</p>
-  </div>
-
-  <div class="q"><b>"앱을 찾을 수 없습니다"라고 나오거나 "테스터 되기" 버튼이 없어요</b>
-    <p>대부분 로그인한 Gmail이 달라서 그래요. 오른쪽 위 프로필에서 계정을 확인해 주세요.</p>
-  </div>
-
-  <div class="q"><b>Play 스토어에 "설치" 버튼이 없어요</b>
-    <p>Play 스토어 오른쪽 위 프로필을 눌러 같은 Gmail로 바꿔 주세요.</p>
-    <p>신청 직후에는 몇 분에서 몇 시간 걸릴 수 있어요. 잠시 후 다시 해 보세요.</p>
-  </div>
-
-  <div class="q"><b>회사나 학교 계정이에요</b>
-    <p>막혀 있을 수 있어요. 개인 <b>Gmail(@gmail.com)</b>로 해 주세요.</p>
-  </div>
-
-  <div class="q"><b>전에 다른 방법으로 앱을 받았어요</b>
-    <p>그 앱을 지우고, 3단계처럼 Play 스토어에서 다시 설치해 주세요.</p>
-  </div>
-
-  <div class="note">그래도 안 되면 걱정 마시고 <b>사용한 Gmail 주소</b>와 <b>막힌 화면 사진(캡처)</b>을 개발자에게 보내 주세요. 바로 도와드릴게요.</div>
 </div>
 </body>
 </html>

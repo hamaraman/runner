@@ -2,6 +2,7 @@ package com.runner.app.ui.run
 
 import com.runner.app.ui.StatusPill
 import com.runner.app.ui.EmptyState
+import com.runner.app.ui.coachMarkTarget
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -235,12 +236,12 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
                     Spacer(Modifier.height(16.dp))
                     if (!active) {
                         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Tile(Modifier.weight(1f).fillMaxHeight(), onClick = { showCoachSettings = true }) {
+                            Tile(Modifier.weight(1f).fillMaxHeight().coachMarkTarget("coach_coaching"), onClick = { showCoachSettings = true }) {
                                 Icon(Icons.Filled.RecordVoiceOver, null, tint = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.height(6.dp))
                                 Text("코칭 설정", style = MaterialTheme.typography.titleMedium)
                             }
-                            ShoeTile(shoes.firstOrNull { !it.retired }, runs, Modifier.weight(1f).fillMaxHeight()) { pickingShoe = true }
+                            ShoeTile(shoes.firstOrNull { !it.retired }, runs, Modifier.weight(1f).fillMaxHeight().coachMarkTarget("coach_shoe")) { pickingShoe = true }
                         }
                         Spacer(Modifier.height(12.dp))
                     }
@@ -427,7 +428,7 @@ private fun ControlButtons(
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         when (status) {
-            TrackingStatus.IDLE -> Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+            TrackingStatus.IDLE -> Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(56.dp).coachMarkTarget("coach_start")) {
                 Icon(Icons.Filled.PlayArrow, null)
                 Spacer(Modifier.width(8.dp))
                 Text("러닝 시작", style = MaterialTheme.typography.titleMedium)

@@ -58,6 +58,7 @@ import com.runner.app.ui.FullDateFmt
 import com.runner.app.ui.InfoCard
 import com.runner.app.ui.SectionTitle
 import com.runner.app.ui.TextInput
+import com.runner.app.ui.coachMarkTarget
 import com.runner.app.ui.dDay
 import com.runner.app.ui.epochDay
 import com.runner.app.ui.openUrl
@@ -165,7 +166,7 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
             onClick = { adding = true },
             icon = { Icon(Icons.Filled.Add, null) },
             text = { Text("대회 추가") },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).coachMarkTarget("coach_race_add"),
         )
     }
 

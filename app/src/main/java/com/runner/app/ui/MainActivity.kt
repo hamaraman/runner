@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -150,9 +152,11 @@ private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
                 exitTransition = { ExitTransition.None },
             ) {
                 composable("main") {
-                    HorizontalPager(pager, userScrollEnabled = false, beyondViewportPageCount = tabs.size - 1, key = { it }) { page ->
+                  // 광고 하나를 탭 바깥에 고정해 모든 탭에서 보이게 한다 (NativeAd 하나는 뷰 하나에만 붙일 수 있다)
+                  Column {
+                    HorizontalPager(pager, Modifier.weight(1f), userScrollEnabled = false, beyondViewportPageCount = tabs.size - 1, key = { it }) { page ->
                         when (page) {
-                            0 -> RunScreen(onOpenRun = { id -> nav.navigate("run/$id") }, onOpenAllRoutes = { nav.navigate("routes") }, onOpenShoes = { goTab(2) }, onPrivacyOptions = onPrivacyOptions, ad = ad)
+                            0 -> RunScreen(onOpenRun = { id -> nav.navigate("run/$id") }, onOpenAllRoutes = { nav.navigate("routes") }, onOpenShoes = { goTab(2) }, onPrivacyOptions = onPrivacyOptions)
                             // 대회에서 '훈련표 만들기'를 누를 때마다 새 폼으로 열리게 요청 번호로 키를 준다
                             1 -> key(planRequest) { PlanScreen(raceId = planRequest?.second) }
                             2 -> ShoesScreen()
@@ -162,6 +166,8 @@ private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
                             })
                         }
                     }
+                    if (ad != null) NativeAdCard(ad, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                  }
                 }
                 composable("routes") { AllRoutesScreen(onBack = { nav.popBackStack() }) }
                 composable("run/{id}", arguments = listOf(navArgument("id") { type = NavType.StringType })) {

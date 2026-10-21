@@ -44,7 +44,8 @@ android {
         }
         release {
             signingConfig = releaseSigning
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             // 실 네이티브 광고 ID는 릴리스에서만 (local.properties의 admobNativeId). 디버그는 테스트 광고 — 내 광고 클릭으로 계정 정지 방지.
             localProps.getProperty("admobNativeId")?.let { resValue("string", "admob_native_id", it) }

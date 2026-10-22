@@ -43,7 +43,7 @@ private data class JrRace(
 
 /**
  * 저스트런(justrun.co.kr) 대회 일정 API. 사이트 운영자 허락을 받고 쓴다.
- * 한 번에 최대 100개, 날짜 늦은 순으로 주므로 지난 대회가 나올 때까지 넘긴다.
+ * 한 번에 최대 100개씩 주므로 빈 페이지가 나올 때까지 넘긴다.
  */
 object RaceCalendar {
     const val URL = "https://justrun.co.kr/schedule"
@@ -51,18 +51,18 @@ object RaceCalendar {
     private const val PAGE = 100
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** 네트워크로 받아 오늘 이후 대회를 날짜순으로 돌려준다. 블로킹이라 IO 스레드에서 부를 것. */
-    fun fetch(today: LocalDate = LocalDate.now()): List<CalendarRace> {
+    /** 네트워크로 받아 지난 대회까지 전부 날짜순으로 돌려준다. 블로킹이라 IO 스레드에서 부를 것. */
+    fun fetch(): List<CalendarRace> {
         val all = mutableListOf<CalendarRace>()
-        // ponytail: 최대 10페이지(1000개). 다가오는 대회가 그보다 많아지면 늘릴 것
-        for (page in 0 until 10) {
+        // ponytail: 최대 30페이지(3000개). 쌓인 대회가 그보다 많아지면 늘리거나 연도별로 받을 것
+        for (page in 0 until 30) {
             val conn = java.net.URL("$API?limit=$PAGE&offset=${page * PAGE}").openConnection()
                 .apply { connectTimeout = 10_000; readTimeout = 15_000 }
             val races = parse(conn.getInputStream().use { it.readBytes() }.decodeToString())
             all += races
-            if (races.size < PAGE || races.any { it.date.isBefore(today) }) break
+            if (races.size < PAGE) break
         }
-        return all.filter { !it.date.isBefore(today) }.sortedBy { it.date }
+        return all.sortedBy { it.date }
     }
 
     fun parse(text: String): List<CalendarRace> = json.decodeFromString<JrPage>(text).races.mapNotNull { r ->

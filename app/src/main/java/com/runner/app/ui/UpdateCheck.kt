@@ -23,6 +23,9 @@ import com.google.android.play.core.install.model.UpdateAvailability
 import com.runner.core.isNewerVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -42,20 +45,24 @@ fun UpdateCheck() {
     val later = { prefs.edit().putLong("laterAt", System.currentTimeMillis()).apply(); release = null }
     val playLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {}
     LaunchedEffect(Unit) {
-        if (context.installedFromPlay()) {
-            val manager = AppUpdateManagerFactory.create(context)
-            manager.appUpdateInfo.addOnSuccessListener { info ->
+        val fromPlay = context.installedFromPlay()
+        if (fromPlay) {
+            // Play 인앱 업데이트를 띄웠으면 끝. Play가 아직 새 버전을 모르거나(캐시·심사 중) 실패하면 아래 GitHub 확인으로 넘어간다
+            val launched = runCatching {
+                val manager = AppUpdateManagerFactory.create(context)
+                val info = manager.appUpdateInfo.await()
                 val available = info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE ||
                     info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS
-                if (available && info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)) {
+                available && info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE) &&
                     manager.startUpdateFlowForResult(info, playLauncher, AppUpdateOptions.defaultOptions(AppUpdateType.IMMEDIATE))
-                }
-            }
-            return@LaunchedEffect
+            }.getOrDefault(false)
+            if (launched) return@LaunchedEffect
         }
         if (System.currentTimeMillis() - prefs.getLong("laterAt", 0) < 24 * 60 * 60 * 1000L) return@LaunchedEffect
         val latest = runCatching { fetchLatest() }.getOrNull() ?: return@LaunchedEffect
-        if (isNewerVersion(latest.tag, context.versionName())) release = latest
+        if (isNewerVersion(latest.tag, context.versionName())) {
+            release = if (fromPlay) latest.copy(url = "https://play.google.com/store/apps/details?id=${context.packageName}") else latest
+        }
     }
     val r = release ?: return
     AlertDialog(
@@ -70,6 +77,11 @@ fun UpdateCheck() {
         },
         dismissButton = { TextButton(onClick = later) { Text("나중에") } },
     )
+}
+
+private suspend fun <T> com.google.android.gms.tasks.Task<T>.await(): T = suspendCancellableCoroutine { cont ->
+    addOnSuccessListener { cont.resume(it) }
+    addOnFailureListener { cont.resumeWithException(it) }
 }
 
 @Suppress("DEPRECATION")

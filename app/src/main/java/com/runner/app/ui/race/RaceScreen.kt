@@ -56,6 +56,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.runner.app.ui.DateField
 import com.runner.app.ui.FullDateFmt
 import com.runner.app.ui.InfoCard
+import com.runner.app.ui.NativeAdCard
+import com.google.android.gms.ads.nativead.NativeAd
 import com.runner.app.ui.SectionTitle
 import com.runner.app.ui.TextInput
 import com.runner.app.ui.coachMarkTarget
@@ -64,6 +66,7 @@ import com.runner.app.ui.epochDay
 import com.runner.app.ui.openUrl
 import com.runner.app.ui.rememberContainer
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -79,7 +82,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 @Composable
-fun RaceScreen(onMakePlan: (String) -> Unit) {
+fun RaceScreen(ad: NativeAd? = null, onMakePlan: (String) -> Unit) {
     val context = LocalContext.current
     val container = rememberContainer()
     val races by container.races.state.collectAsStateWithLifecycle()
@@ -92,6 +95,7 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
     }
     var query by remember { mutableStateOf("") }
     var distanceFilter by remember { mutableStateOf<RaceDistance?>(null) }
+    var year by remember { mutableStateOf(LocalDate.now().year) }
     var prefill by remember { mutableStateOf<CalendarRace?>(null) }
     var deleting by remember { mutableStateOf<Race?>(null) }
 
@@ -142,12 +146,25 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
                     }
                 }
                 else -> {
+                    val years = (list.map { it.date.year } + LocalDate.now().year).distinct().sortedDescending()
+                    if (years.size > 1) item {
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            years.forEach { y -> FilterChip(year == y, { year = y }, { Text("${y}년") }) }
+                        }
+                    }
                     val added = races.map { it.name to it.dateEpochDay }.toSet()
                     val shown = list.filter {
-                        (query.isBlank() || query in it.name || query in it.place) && (distanceFilter == null || it.distance == distanceFilter)
+                        it.date.year == year &&
+                            (query.isBlank() || query in it.name || query in it.place) && (distanceFilter == null || it.distance == distanceFilter)
                     }
                     if (shown.isEmpty()) item { EmptyState("조건에 맞는 대회가 없어요") }
-                    items(shown, key = { "cal-" + it.no }) { r ->
+                    // 대회 목록 중간에 광고 하나
+                    val half = shown.size / 2
+                    items(shown.take(half), key = { "cal-" + it.no }) { r ->
+                        CalendarRow(r, added = (r.name to r.date.toEpochDay()) in added) { prefill = r; adding = true }
+                    }
+                    if (ad != null && shown.isNotEmpty()) item(key = "ad") { NativeAdCard(ad) }
+                    items(shown.drop(half), key = { "cal-" + it.no }) { r ->
                         CalendarRow(r, added = (r.name to r.date.toEpochDay()) in added) { prefill = r; adding = true }
                     }
                     item {

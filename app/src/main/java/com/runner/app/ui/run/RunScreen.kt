@@ -138,9 +138,13 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
     }
     val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { restoreUri = it }
 
+    // 권한 요청을 거쳐도 훈련 모드로 시작하도록 기억해 둔다
+    var pendingGuidedDay by remember { mutableStateOf<Long?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        val guidedDay = pendingGuidedDay.also { pendingGuidedDay = null }
         when {
-            result[Manifest.permission.ACCESS_FINE_LOCATION] == true -> RunTrackingService.send(context, RunTrackingService.ACTION_START)
+            result[Manifest.permission.ACCESS_FINE_LOCATION] == true ->
+                RunTrackingService.send(context, RunTrackingService.ACTION_START, guidedDay)
             // 대략적 위치는 오차가 수백 m라 경로를 기록할 수 없다
             result[Manifest.permission.ACCESS_COARSE_LOCATION] == true ->
                 Toast.makeText(context, "러닝 기록에는 '정확한 위치'가 필요해요. 설정 > 앱 > 위치에서 켜주세요", Toast.LENGTH_LONG).show()
@@ -148,14 +152,15 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
         }
     }
 
-    fun startRun() {
+    fun startRun(guidedDay: Long? = null) {
         val hasLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
         val needsNotification = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         if (hasLocation && !needsNotification) {
-            RunTrackingService.send(context, RunTrackingService.ACTION_START)
+            RunTrackingService.send(context, RunTrackingService.ACTION_START, guidedDay)
         } else {
+            pendingGuidedDay = guidedDay
             val perms = buildList {
                 add(Manifest.permission.ACCESS_FINE_LOCATION)
                 add(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -176,7 +181,8 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
         if (!active && today != null) {
             item {
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(12.dp).background(today.type.color(), CircleShape))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
@@ -188,6 +194,15 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
                             Text(today.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (today.done) StatusPill("완료", MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
+                    if (today.type != WorkoutType.REST) {
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedButton(onClick = { startRun(today.dateEpochDay) }, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Filled.PlayArrow, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("훈련 시작 · 음성 안내")
+                        }
+                    }
                     }
                 }
             }

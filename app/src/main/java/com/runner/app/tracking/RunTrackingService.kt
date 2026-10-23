@@ -31,6 +31,8 @@ import com.runner.app.ui.MainActivity
 import com.runner.core.AutoPauseDetector
 import com.runner.core.CoachSettings
 import com.runner.core.Geo
+import com.runner.core.GuideSteps
+import com.runner.core.GuideTracker
 import com.runner.core.IntRange2
 import com.runner.core.IntervalPrograms
 import com.runner.core.IntervalStep
@@ -77,6 +79,8 @@ class RunTrackingService : Service() {
     private val autoPause = AutoPauseDetector()
     private var intervalSteps: List<IntervalStep>? = null
     private var intervalIndex = -1
+    private var guide: GuideTracker? = null
+    private var guideDay = 0L
 
     private val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -97,7 +101,7 @@ class RunTrackingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> start()
+            ACTION_START -> start(intent.getLongExtra(EXTRA_GUIDED_DAY, NO_DAY).takeIf { it != NO_DAY })
             ACTION_PAUSE -> pause()
             ACTION_RESUME -> resume()
             ACTION_STOP -> finish(save = true)
@@ -106,7 +110,7 @@ class RunTrackingService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun start() {
+    private fun start(guidedDay: Long?) {
         // startForegroundService 후 5초 안에 반드시 호출해야 한다
         goForeground()
         if (TrackingState.state.value.status != TrackingStatus.IDLE) return
@@ -119,10 +123,13 @@ class RunTrackingService : Service() {
         settings = container.coach.value
         splitTracker = KmSplitTracker()
         autoPause.reset()
-        intervalSteps = settings.intervalSession?.let { IntervalPrograms.beginner.getOrNull(it)?.steps }
+        guide = guidedDay?.let(::guideFor)
+        guideDay = guidedDay ?: 0L
+        // 훈련 모드가 초보 인터벌보다 우선
+        intervalSteps = if (guide != null) null else settings.intervalSession?.let { IntervalPrograms.beginner.getOrNull(it)?.steps }
         intervalIndex = -1
-        // 인터벌은 구간마다 페이스가 달라 페이스 알림을 하지 않는다
-        val target = if (intervalSteps != null) null else chooseTarget()
+        // 인터벌은 구간마다 페이스가 달라 페이스 알림을 하지 않는다. 훈련 모드는 구간마다 목표를 바꾼다(updateGuide)
+        val target = if (intervalSteps != null || guide != null) null else chooseTarget()
         paceAlert = target?.takeIf { settings.paceAlert }?.let { PaceAlertPolicy(it) }
 
         TrackingState.mutable.value = TrackingSnapshot(
@@ -131,9 +138,16 @@ class RunTrackingService : Service() {
             waitingForGps = true,
             targetPace = target,
         )
-        say(VoiceText.start(target))
+        say(if (guide != null) "훈련을 시작합니다." else VoiceText.start(target))
         requestUpdates()
         startTimer()
+    }
+
+    /** 그날 훈련표 운동의 구간 트래커. 운동이 없거나 휴식일이면 null(일반 러닝). */
+    private fun guideFor(day: Long): GuideTracker? {
+        val plan = container.plan.value ?: return null
+        val workout = plan.weeks.asSequence().flatMap { it.workouts }.firstOrNull { it.dateEpochDay == day } ?: return null
+        return GuideSteps.forWorkout(plan, workout).takeIf { it.isNotEmpty() }?.let(::GuideTracker)
     }
 
     /** 오늘 훈련표의 운동에 맞는 목표 페이스, 없으면 수동 설정값. */
@@ -186,7 +200,10 @@ class RunTrackingService : Service() {
         // 너무 짧은 기록(1분 미만·50m 미만)은 저장하지 않음
         if (save && intervalSteps != null && intervalIndex == intervalSteps!!.size) advanceIntervalSession()
         intervalSteps = null
+        val guideFinished = guide?.finished == true
+        guide = null
         if (save && snap.status != TrackingStatus.IDLE && (durationSec >= 60 || snap.distanceM >= 50)) {
+            if (guideFinished) container.setWorkoutDone(guideDay, true)
             val newBests = container.saveRun(
                 RunRecord(
                     id = runId,
@@ -287,6 +304,7 @@ class RunTrackingService : Service() {
                 val current = if (snap.autoPaused) null else Geo.recentPaceSec(snap.points)
                 TrackingState.mutable.update { it.copy(elapsedSec = elapsedMs / 1000, currentPaceSec = current) }
                 updateInterval(elapsedMs / 1000)
+                updateGuide(elapsedMs / 1000)
                 if (tick % 10 == 0 && !snap.autoPaused) checkPace(current, elapsedMs)
                 if (tick % 5 == 0) updateNotification()
                 if (tick % 10 == 9) saveDraft()
@@ -310,6 +328,21 @@ class RunTrackingService : Service() {
         val text = pos?.let { "${steps[it.index].label} ${it.index + 1}/${steps.size} · ${Pace.formatDuration(it.remainingSec.toLong())} 남음" }
             ?: "인터벌 완료"
         TrackingState.mutable.update { it.copy(intervalText = text) }
+    }
+
+    /** 훈련 구간이 바뀌면 음성·진동으로 알리고, 페이스 알림 목표를 그 구간 것으로 바꾼다. */
+    private fun updateGuide(elapsedSec: Long) {
+        val g = guide ?: return
+        val distanceM = TrackingState.state.value.distanceM
+        val started = g.update(distanceM, elapsedSec)
+        if (started.isNotEmpty()) {
+            vibrate()
+            started.forEach { i -> say(g.steps.getOrNull(i)?.let(VoiceText::guideStep) ?: VoiceText.GUIDE_DONE) }
+            val pace = g.steps.getOrNull(g.index)?.pace
+            paceAlert = pace?.takeIf { settings.paceAlert }?.let { PaceAlertPolicy(it) }
+            TrackingState.mutable.update { it.copy(targetPace = pace) }
+        }
+        TrackingState.mutable.update { it.copy(intervalText = g.progressText(distanceM, elapsedSec)) }
     }
 
     /** 끝까지 마친 회차면 다음 회차로 넘긴다. 마지막 회차를 마치면 프로그램을 끈다. */
@@ -399,8 +432,13 @@ class RunTrackingService : Service() {
         const val ACTION_STOP = "com.runner.app.STOP"
         const val ACTION_DISCARD = "com.runner.app.DISCARD"
 
-        fun send(context: Context, action: String) {
+        const val EXTRA_GUIDED_DAY = "com.runner.app.GUIDED_DAY"
+        private const val NO_DAY = Long.MIN_VALUE
+
+        /** guidedDay: 훈련 시작으로 안내할 훈련표 운동의 날짜(epochDay). null이면 일반 러닝. */
+        fun send(context: Context, action: String, guidedDay: Long? = null) {
             val intent = Intent(context, RunTrackingService::class.java).setAction(action)
+            guidedDay?.let { intent.putExtra(EXTRA_GUIDED_DAY, it) }
             if (action == ACTION_START) {
                 ContextCompat.startForegroundService(context, intent)
             } else {

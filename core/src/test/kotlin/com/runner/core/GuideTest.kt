@@ -88,3 +88,71 @@ class GuideTest {
         assertTrue(steps(RaceDistance.TEN_K, wo(WorkoutType.REST, 0.0)).isEmpty())
     }
 }
+
+class GuideTrackerTest {
+    private fun d(label: String, m: Double) = GuideStep(label, distanceM = m)
+
+    @Test fun startsAtZero() {
+        val t = GuideTracker(listOf(d("워밍업", 2000.0)))
+        assertEquals(listOf(0), t.update(0.0, 0))
+        assertEquals(emptyList<Int>(), t.update(0.0, 0))
+    }
+
+    @Test fun distanceStepAdvances() {
+        val t = GuideTracker(listOf(d("워밍업", 2000.0), d("빠르게", 400.0)))
+        t.update(0.0, 0)
+        assertEquals(emptyList<Int>(), t.update(1999.0, 600))
+        assertEquals(listOf(1), t.update(2000.0, 610))
+        assertEquals(listOf(2), t.update(2400.0, 700))
+        assertTrue(t.finished)
+    }
+
+    @Test fun timeStepAdvances() {
+        val t = GuideTracker(listOf(GuideStep("템포", sec = 1500)))
+        t.update(0.0, 100)
+        assertEquals(emptyList<Int>(), t.update(10.0, 1599))
+        assertEquals(listOf(1), t.update(10.0, 1600))
+    }
+
+    @Test fun untilTotal() {
+        val t = GuideTracker(listOf(GuideStep("쿨다운", untilTotalM = 5000.0)))
+        t.update(3000.0, 0)
+        assertEquals(emptyList<Int>(), t.update(4999.0, 10))
+        assertEquals(listOf(1), t.update(5000.0, 20))
+    }
+
+    @Test fun bigJumpCrossesSeveralSteps() {
+        val t = GuideTracker(listOf(d("빠르게", 400.0), d("조깅", 200.0), d("빠르게", 400.0)))
+        t.update(0.0, 0)
+        assertEquals(listOf(1, 2, 3), t.update(1000.0, 60))
+        assertTrue(t.finished)
+    }
+
+    @Test fun pausedTimeDoesNotAdvance() {
+        val t = GuideTracker(listOf(GuideStep("템포", sec = 60), d("조깅", 200.0)))
+        t.update(0.0, 0)
+        repeat(5) { assertEquals(emptyList<Int>(), t.update(50.0, 30)) }
+        assertEquals(0, t.index)
+    }
+
+    @Test fun progressTextFormats() {
+        val fast = GuideTracker(listOf(GuideStep("빠르게", distanceM = 400.0, rep = 3, reps = 8)))
+        fast.update(1000.0, 0)
+        assertEquals("빠르게 3/8 · 120m 남음", fast.progressText(1280.0, 60))
+        val tempo = GuideTracker(listOf(GuideStep("템포", sec = 1500)))
+        tempo.update(0.0, 0)
+        assertEquals("템포 · 12:30 남음", tempo.progressText(0.0, 750))
+        val cool = GuideTracker(listOf(GuideStep("쿨다운", untilTotalM = 8000.0)))
+        cool.update(7000.0, 0)
+        assertEquals("쿨다운 · 0.8km 남음", cool.progressText(7200.0, 0))
+        cool.update(8000.0, 10)
+        assertEquals("훈련 완료", cool.progressText(8000.0, 10))
+    }
+
+    @Test fun voiceText() {
+        assertEquals("빠르게 400미터, 3회차.", VoiceText.guideStep(GuideStep("빠르게", distanceM = 400.0, rep = 3, reps = 8)))
+        assertEquals("템포 25분.", VoiceText.guideStep(GuideStep("템포", sec = 1500)))
+        assertEquals("쿨다운.", VoiceText.guideStep(GuideStep("쿨다운", untilTotalM = 8000.0)))
+        assertEquals("이지런 6킬로미터.", VoiceText.guideStep(GuideStep("이지런", distanceM = 6000.0)))
+    }
+}

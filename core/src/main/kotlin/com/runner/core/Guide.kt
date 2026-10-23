@@ -1,5 +1,7 @@
 package com.runner.core
 
+import kotlin.math.roundToInt
+
 /**
  * 훈련 시작(가이드 러닝)의 한 구간. 종료 조건은 셋 중 하나:
  * 이 구간에서 distanceM 만큼 달리기 / sec 초 지나기 / 전체 누적 거리가 untilTotalM 에 닿기.
@@ -57,4 +59,66 @@ object GuideSteps {
 
     private fun isRaceWeek(plan: TrainingPlan, workout: Workout) =
         plan.weeks.firstOrNull { workout in it.workouts }?.workouts?.any { it.type == WorkoutType.RACE } == true
+}
+
+/**
+ * 누적 거리·경과 시간으로 지금 몇 번째 구간인지 판정한다. 서비스가 넘기는 값만 쓰므로
+ * 일시정지 중(값이 그대로)엔 진행하지 않는다. 마지막 구간을 넘기면 index == steps.size.
+ */
+class GuideTracker(val steps: List<GuideStep>) {
+    var index = -1
+        private set
+    val finished get() = index >= steps.size
+
+    private var startM = 0.0
+    private var startSec = 0L
+
+    /** 이번 호출에서 새로 시작된 구간 인덱스들(완료되면 steps.size 포함). 첫 호출은 [0]. */
+    fun update(distanceM: Double, elapsedSec: Long): List<Int> {
+        if (finished) return emptyList()
+        val started = mutableListOf<Int>()
+        if (index < 0) started += begin(0, distanceM, elapsedSec)
+        // GPS가 튀어 여러 구간을 한 번에 지나도 하나씩 넘긴다
+        while (!finished && isDone(steps[index], distanceM, elapsedSec)) {
+            // 끝난 구간의 목표 지점에서 다음 구간을 시작해야 초과분이 다음 구간에 반영된다
+            val done = steps[index]
+            started += begin(
+                index + 1,
+                done.distanceM?.let { startM + it } ?: distanceM,
+                done.sec?.let { startSec + it } ?: elapsedSec,
+            )
+        }
+        return started
+    }
+
+    /** 예: "빠르게 3/8 · 120m 남음", "템포 · 12:30 남음", "쿨다운 · 0.8km 남음" */
+    fun progressText(distanceM: Double, elapsedSec: Long): String {
+        if (finished || index < 0) return "훈련 완료"
+        val step = steps[index]
+        val name = if (step.reps > 0) "${step.label} ${step.rep}/${step.reps}" else step.label
+        val left = when {
+            step.sec != null -> Pace.formatDuration((step.sec - (elapsedSec - startSec)).coerceAtLeast(0))
+            step.distanceM != null -> meters(step.distanceM - (distanceM - startM), short = step.distanceM <= 1000)
+            else -> meters(step.untilTotalM!! - distanceM, short = false)
+        }
+        return "$name · $left 남음"
+    }
+
+    private fun begin(i: Int, distanceM: Double, elapsedSec: Long): Int {
+        index = i
+        startM = distanceM
+        startSec = elapsedSec
+        return i
+    }
+
+    private fun isDone(step: GuideStep, distanceM: Double, elapsedSec: Long) = when {
+        step.sec != null -> elapsedSec - startSec >= step.sec
+        step.distanceM != null -> distanceM - startM >= step.distanceM
+        else -> distanceM >= step.untilTotalM!!
+    }
+
+    private fun meters(m: Double, short: Boolean): String {
+        val left = m.coerceAtLeast(0.0)
+        return if (short) "${left.roundToInt()}m" else "%.1fkm".format(left / 1000)
+    }
 }

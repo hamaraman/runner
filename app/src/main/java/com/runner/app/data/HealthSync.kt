@@ -7,6 +7,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseRoute
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.units.Length
@@ -46,7 +47,7 @@ object HealthSync {
                 ExerciseRoute.Location(Instant.ofEpochMilli(it.timeMs), it.lat, it.lng, horizontalAccuracy = Length.meters(it.accuracyM.toDouble()))
             }
             val device = Device(type = Device.TYPE_PHONE)
-            val records = listOf(
+            val records = listOf<Record>(
                 ExerciseSessionRecord(
                     startTime = start, startZoneOffset = null, endTime = end, endZoneOffset = null,
                     metadata = Metadata.activelyRecorded(device, clientRecordId = "run-${run.id}", clientRecordVersion = 1),

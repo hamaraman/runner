@@ -69,6 +69,8 @@ import com.runner.app.ui.SoftCard
 import com.runner.app.ui.StatusPill
 import com.runner.app.ui.TextInput
 import com.runner.app.ui.epochDay
+import com.google.android.gms.ads.nativead.NativeAd
+import com.runner.app.ui.NativeAdCard
 import com.runner.app.ui.rememberContainer
 import com.runner.core.RunRecord
 import com.runner.core.Shoe
@@ -82,7 +84,9 @@ import kotlinx.coroutines.withContext
 
 /** 러닝화 관리 탭. 카드나 추가 버튼을 누르면 같은 자리에서 등록·수정 화면으로 바뀐다. */
 @Composable
-fun ShoesScreen() {
+fun ShoesScreen(ad: NativeAd? = null) {
+    val container = rememberContainer()
+    val shoes by container.shoes.state.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<Shoe?>(null) }
     var adding by remember { mutableStateOf(false) }
     if (adding || editing != null) {
@@ -90,13 +94,23 @@ fun ShoesScreen() {
         BackHandler(onBack = close)
         ShoeEditScreen(editing, close)
     } else {
-        ShoesList(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), onAdd = { adding = true }, onEdit = { editing = it })
+        // 러닝화가 2개 이하면 광고를 아래에 고정, 3개부터는 목록 중간에 넣는다
+        val pinned = shoes.size <= 2
+        Column {
+            ShoesList(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+                ad = ad.takeIf { !pinned },
+                onAdd = { adding = true },
+                onEdit = { editing = it },
+            )
+            if (pinned && ad != null) NativeAdCard(ad, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        }
     }
 }
 
 /** 러닝화 목록: 사용 중 / 보관함. 맨 위 사용 중 신발이 새 러닝에 자동으로 붙는다. 카드를 누르면 수정. */
 @Composable
-private fun ShoesList(modifier: Modifier, onAdd: () -> Unit, onEdit: (Shoe) -> Unit) {
+private fun ShoesList(modifier: Modifier, ad: NativeAd?, onAdd: () -> Unit, onEdit: (Shoe) -> Unit) {
     val container = rememberContainer()
     val shoes by container.shoes.state.collectAsStateWithLifecycle()
     val runs by container.runs.state.collectAsStateWithLifecycle()
@@ -106,7 +120,12 @@ private fun ShoesList(modifier: Modifier, onAdd: () -> Unit, onEdit: (Shoe) -> U
     Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionTitle("사용 중")
         if (active.isEmpty()) EmptyState("러닝화를 등록하면 달린 거리가 자동으로 쌓여요.")
-        active.forEach { ShoeCard(it, runs, it.id == current, onSelect = { container.selectShoe(it.id) }) { onEdit(it) } }
+        // 광고는 전체 러닝화 중 가운데쯤(사용 중 → 보관함 순서로 센다)
+        val adAt = shoes.size / 2
+        active.forEachIndexed { i, s ->
+            if (ad != null && i == adAt) NativeAdCard(ad)
+            ShoeCard(s, runs, s.id == current, onSelect = { container.selectShoe(s.id) }) { onEdit(s) }
+        }
         Button(onClick = onAdd, Modifier.fillMaxWidth().coachMarkTarget("coach_shoes_add")) {
             Icon(Icons.Filled.Add, null)
             Spacer(Modifier.width(6.dp))
@@ -114,7 +133,10 @@ private fun ShoesList(modifier: Modifier, onAdd: () -> Unit, onEdit: (Shoe) -> U
         }
         if (retired.isNotEmpty()) {
             SectionTitle("보관함")
-            retired.forEach { ShoeCard(it, runs, false, onSelect = null) { onEdit(it) } }
+            retired.forEachIndexed { i, s ->
+                if (ad != null && active.size + i == adAt) NativeAdCard(ad)
+                ShoeCard(s, runs, false, onSelect = null) { onEdit(s) }
+            }
         }
     }
 }

@@ -18,8 +18,8 @@ android {
         applicationId = "io.github.hamaraman.runner"
         minSdk = 26
         targetSdk = 36
-        versionCode = 25
-        versionName = "0.6.6"
+        versionCode = 28
+        versionName = "0.6.9"
         // 네이버 지도 Client ID는 local.properties의 naverMapClientId (커밋 금지). 없으면 지도만 인증 실패로 안 뜬다.
         manifestPlaceholders["naverMapClientId"] = localProps.getProperty("naverMapClientId", "")
         // AdMob App ID는 local.properties의 admobAppId. 없으면 구글 공식 테스트 ID로 동작한다.
@@ -47,6 +47,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            // 네이티브 라이브러리(libnavermap.so) 크래시를 Play Console에서 읽을 수 있게 심볼을 함께 올린다
+            ndk { debugSymbolLevel = "SYMBOL_TABLE" }
             // 실 네이티브 광고 ID는 릴리스에서만 (local.properties의 admobNativeId). 디버그는 테스트 광고 — 내 광고 클릭으로 계정 정지 방지.
             localProps.getProperty("admobNativeId")?.let { resValue("string", "admob_native_id", it) }
         }

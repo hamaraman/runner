@@ -203,6 +203,22 @@ object VoiceText {
     fun start(target: IntRange2?): String =
         "러닝을 시작합니다." + (target?.let { " 목표 페이스는 ${pace(it.min.toDouble())}에서 ${pace(it.max.toDouble())}예요." } ?: "")
 
+    /** 구간 시작 안내. 예: "빠르게 400미터, 3회차.", "템포 25분.", "쿨다운." */
+    fun guideStep(step: GuideStep): String {
+        val amount = when {
+            step.sec != null -> " ${duration(step.sec.toLong())}"
+            step.distanceM != null -> " " + distance(step.distanceM)
+            else -> ""
+        }
+        return step.label + amount + (if (step.reps > 0) ", ${step.rep}회차." else ".")
+    }
+
+    const val GUIDE_DONE = "훈련 완료! 수고했어요. 기록은 계속돼요."
+
+    private fun distance(m: Double): String =
+        if (m < 1000) "${m.roundToInt()}미터"
+        else (m / 1000).let { if (it % 1.0 == 0.0) "${it.toInt()}킬로미터" else "%.1f킬로미터".format(it) }
+
     fun finish(distanceM: Double, durationSec: Long, avgPaceSec: Double?): String =
         "러닝 종료. 총 ${"%.2f".format(distanceM / 1000)}킬로미터, 시간 ${duration(durationSec)}, 평균 페이스 ${pace(avgPaceSec)}."
 }

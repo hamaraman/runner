@@ -56,6 +56,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.runner.app.ui.DateField
 import com.runner.app.ui.FullDateFmt
 import com.runner.app.ui.InfoCard
+import com.runner.app.ui.NativeAdCard
+import com.google.android.gms.ads.nativead.NativeAd
 import com.runner.app.ui.SectionTitle
 import com.runner.app.ui.TextInput
 import com.runner.app.ui.coachMarkTarget
@@ -64,6 +66,7 @@ import com.runner.app.ui.epochDay
 import com.runner.app.ui.openUrl
 import com.runner.app.ui.rememberContainer
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -79,7 +82,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 @Composable
-fun RaceScreen(onMakePlan: (String) -> Unit) {
+fun RaceScreen(ad: NativeAd? = null, onMakePlan: (String) -> Unit) {
     val context = LocalContext.current
     val container = rememberContainer()
     val races by container.races.state.collectAsStateWithLifecycle()
@@ -92,6 +95,7 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
     }
     var query by remember { mutableStateOf("") }
     var distanceFilter by remember { mutableStateOf<RaceDistance?>(null) }
+    var year by remember { mutableStateOf(LocalDate.now().year) }
     var prefill by remember { mutableStateOf<CalendarRace?>(null) }
     var deleting by remember { mutableStateOf<Race?>(null) }
 
@@ -142,13 +146,26 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
                     }
                 }
                 else -> {
+                    val years = (list.map { it.date.year } + LocalDate.now().year).distinct().sortedDescending()
+                    item {
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            years.forEach { y -> FilterChip(year == y, { year = y }, { Text("${y}년") }) }
+                        }
+                    }
                     val added = races.map { it.name to it.dateEpochDay }.toSet()
                     val shown = list.filter {
-                        (query.isBlank() || query in it.name || query in it.place) && (distanceFilter == null || it.distance == distanceFilter)
+                        it.date.year == year &&
+                            (query.isBlank() || query in it.name || query in it.place) && (distanceFilter == null || it.distance == distanceFilter)
                     }
                     if (shown.isEmpty()) item { EmptyState("조건에 맞는 대회가 없어요") }
-                    items(shown, key = { "cal-" + it.no }) { r ->
-                        CalendarRow(r, added = (r.name to r.date.toEpochDay()) in added) { prefill = r; adding = true }
+                    // 대회 목록 위쪽(3번째 대회 다음)에 광고 하나. 목록이 수백 개라 정가운데면 거의 안 보인다
+                    val half = minOf(3, shown.size)
+                    items(shown.take(half), key = { "cal-" + it.no }) { r ->
+                        CalendarRow(r, added = (r.name to r.date.toEpochDay()) in added, past = r.date.toEpochDay() < today) { prefill = r; adding = true }
+                    }
+                    if (ad != null && shown.isNotEmpty()) item(key = "ad") { NativeAdCard(ad) }
+                    items(shown.drop(half), key = { "cal-" + it.no }) { r ->
+                        CalendarRow(r, added = (r.name to r.date.toEpochDay()) in added, past = r.date.toEpochDay() < today) { prefill = r; adding = true }
                     }
                     item {
                         Text(
@@ -287,6 +304,10 @@ private fun RaceDialog(initial: CalendarRace?, onDismiss: () -> Unit, onSave: (R
         },
         confirmButton = {
             TextButton(enabled = name.isNotBlank(), onClick = save@{
+                if (date.isBefore(LocalDate.now())) {
+                    Toast.makeText(context, "이미 지난 날짜의 대회는 추가할 수 없어요", Toast.LENGTH_SHORT).show()
+                    return@save
+                }
                 val goalSec = if (goal.isBlank()) null else Pace.parseDuration(goal) ?: run {
                     Toast.makeText(context, "목표 기록 형식을 확인해주세요 (예: 1:59:00)", Toast.LENGTH_SHORT).show()
                     return@save
@@ -311,8 +332,8 @@ private fun RaceDialog(initial: CalendarRace?, onDismiss: () -> Unit, onSave: (R
 
 /** 전국 대회 일정의 한 줄. 누르면 내용이 채워진 대회 추가 창이 뜬다. */
 @Composable
-private fun CalendarRow(r: CalendarRace, added: Boolean, onClick: () -> Unit) {
-    SoftCard(Modifier.clickable(enabled = !added, onClick = onClick)) {
+private fun CalendarRow(r: CalendarRace, added: Boolean, past: Boolean, onClick: () -> Unit) {
+    SoftCard(Modifier.clickable(enabled = !added && !past, onClick = onClick)) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(r.name, style = MaterialTheme.typography.titleSmall)
@@ -325,6 +346,7 @@ private fun CalendarRow(r: CalendarRace, added: Boolean, onClick: () -> Unit) {
             }
             Spacer(Modifier.width(8.dp))
             if (added) StatusPill("추가됨", MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+            else if (past) StatusPill("종료", MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurfaceVariant)
             else Icon(Icons.Filled.Add, "추가", tint = MaterialTheme.colorScheme.primary)
         }
     }

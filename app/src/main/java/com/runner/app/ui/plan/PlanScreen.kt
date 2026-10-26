@@ -69,6 +69,8 @@ import com.runner.app.ui.rememberContainer
 import com.runner.app.ui.theme.WorkoutColors
 import com.runner.core.Pace
 import com.runner.core.RaceDistance
+import com.google.android.gms.ads.nativead.NativeAd
+import com.runner.app.ui.NativeAdCard
 import com.runner.core.TrainingPlan
 import com.runner.core.TrainingPlanGenerator
 import com.runner.core.Workout
@@ -88,21 +90,27 @@ fun WorkoutType.color(): Color = when (this) {
 }
 
 @Composable
-fun PlanScreen(raceId: String?) {
+fun PlanScreen(raceId: String?, ad: NativeAd? = null) {
     val container = rememberContainer()
     val plan by container.plan.state.collectAsStateWithLifecycle()
     var forceForm by rememberSaveable(raceId) { mutableStateOf(raceId != null) }
 
     val current = plan
     if (current == null || forceForm) {
-        PlanForm(
-            raceId = raceId,
-            hasExisting = current != null,
-            onCancel = { forceForm = false },
-            onCreated = { forceForm = false },
-        )
+        // 훈련 일정이 없을 때는 광고를 아래에 고정
+        Column {
+            Box(Modifier.weight(1f)) {
+                PlanForm(
+                    raceId = raceId,
+                    hasExisting = current != null,
+                    onCancel = { forceForm = false },
+                    onCreated = { forceForm = false },
+                )
+            }
+            if (ad != null) NativeAdCard(ad, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        }
     } else {
-        PlanView(current, onNewPlan = { forceForm = true })
+        PlanView(current, ad, onNewPlan = { forceForm = true })
     }
 }
 
@@ -194,7 +202,7 @@ private fun PlanForm(raceId: String?, hasExisting: Boolean, onCancel: () -> Unit
 }
 
 @Composable
-private fun PlanView(plan: TrainingPlan, onNewPlan: () -> Unit) {
+private fun PlanView(plan: TrainingPlan, ad: NativeAd?, onNewPlan: () -> Unit) {
     val container = rememberContainer()
     val today = LocalDate.now().toEpochDay()
     val listState = rememberLazyListState()
@@ -204,7 +212,7 @@ private fun PlanView(plan: TrainingPlan, onNewPlan: () -> Unit) {
     val totalRuns = allWorkouts.count { it.type != WorkoutType.REST && it.dateEpochDay <= today }
     val doneRuns = allWorkouts.count { it.type != WorkoutType.REST && it.done }
 
-    // 오늘이 속한 주로 스크롤 (헤더 1개 + 주마다 1개 아이템)
+    // 오늘이 속한 주로 스크롤 (헤더 1개 + 주마다 1개 아이템. 광고는 키로 자리를 지켜서 나중에 끼어도 화면이 밀리지 않는다)
     val currentWeek = plan.weeks.indexOfFirst { w -> w.workouts.any { it.dateEpochDay == today } }
     LaunchedEffect(plan.raceDateEpochDay) {
         if (currentWeek > 0) listState.scrollToItem(currentWeek + 1)
@@ -267,7 +275,9 @@ private fun PlanView(plan: TrainingPlan, onNewPlan: () -> Unit) {
                 }
             }
         }
-        plan.weeks.forEach { week ->
+        plan.weeks.forEachIndexed { i, week ->
+            // 훈련 일정 중간에 광고 하나
+            if (ad != null && i == plan.weeks.size / 2) item(key = "ad") { NativeAdCard(ad) }
             item(key = "w${week.index}") {
                 val isCurrent = week.workouts.any { it.dateEpochDay == today }
                 SoftCard(highlight = isCurrent) {

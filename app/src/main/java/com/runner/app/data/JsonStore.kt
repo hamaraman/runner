@@ -46,13 +46,16 @@ class JsonStore<T>(
         return { update { parsed } }
     }
 
-    private fun load(): T? = try {
-        if (file.exists()) json.decodeFromString(serializer, file.readText()) else null
-    } catch (e: Exception) {
-        // 파일이 깨졌으면 백업해두고 기본값으로 시작
-        Log.w(TAG, "Failed to read ${file.name}, starting fresh", e)
-        file.copyTo(File(file.path + ".broken"), overwrite = true)
-        null
+    // write()가 원본을 지운 뒤 이름 바꾸기 전에 죽었으면 원본은 없고 .tmp만 남는다
+    private fun load(): T? = listOf(file, File(file.path + ".tmp")).firstOrNull { it.exists() }?.let { src ->
+        try {
+            json.decodeFromString(serializer, src.readText())
+        } catch (e: Exception) {
+            // 파일이 깨졌으면 백업해두고 기본값으로 시작
+            Log.w(TAG, "Failed to read ${src.name}, starting fresh", e)
+            src.copyTo(File(file.path + ".broken"), overwrite = true)
+            null
+        }
     }
 
     private fun write(value: T) {

@@ -217,7 +217,8 @@ class RunTrackingService : Service() {
             locationClient.requestLocationUpdates(request, callback, Looper.getMainLooper())
         } catch (e: SecurityException) {
             Log.e(TAG, "Location permission missing", e)
-            finish(save = false)
+            // 재개 중 권한이 꺼졌어도 지금까지 뛴 기록은 저장한다
+            finish(save = true)
         }
     }
 

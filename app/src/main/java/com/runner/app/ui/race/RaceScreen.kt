@@ -92,6 +92,7 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
     }
     var query by remember { mutableStateOf("") }
     var distanceFilter by remember { mutableStateOf<RaceDistance?>(null) }
+    var showEnded by remember { mutableStateOf(false) }
     var prefill by remember { mutableStateOf<CalendarRace?>(null) }
     var deleting by remember { mutableStateOf<Race?>(null) }
 
@@ -122,6 +123,10 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextInput("대회 이름·장소 검색", query, { query = it })
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(!showEnded, { showEnded = false }, { Text("진행·예정") })
+                        FilterChip(showEnded, { showEnded = true }, { Text("종료") })
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         FilterChip(distanceFilter == null, { distanceFilter = null }, { Text("전체") })
                         RaceDistance.entries.forEach { d ->
                             FilterChip(distanceFilter == d, { distanceFilter = if (distanceFilter == d) null else d }, { Text(d.label) })
@@ -144,6 +149,7 @@ fun RaceScreen(onMakePlan: (String) -> Unit) {
                 else -> {
                     val added = races.map { it.name to it.dateEpochDay }.toSet()
                     val shown = list.filter {
+                        (it.date.toEpochDay() < today) == showEnded &&
                         (query.isBlank() || query in it.name || query in it.place) && (distanceFilter == null || it.distance == distanceFilter)
                     }
                     if (shown.isEmpty()) item { EmptyState("조건에 맞는 대회가 없어요") }

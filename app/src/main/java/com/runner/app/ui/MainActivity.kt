@@ -50,6 +50,8 @@ import com.runner.app.CrashReport
 import com.runner.app.ui.plan.PlanScreen
 import com.runner.app.ui.race.RaceScreen
 import com.runner.app.ui.run.AllRoutesScreen
+import com.runner.app.ui.run.CoverRunScreen
+import androidx.compose.ui.platform.LocalConfiguration
 import com.runner.app.ui.run.RunDetailScreen
 import com.runner.app.ui.run.RunScreen
 import com.runner.app.ui.run.ShoesScreen
@@ -110,6 +112,9 @@ private val tabs = listOf(
 
 @Composable
 private fun RunnerNav(adsReady: Boolean, onPrivacyOptions: (() -> Unit)?) {
+    // 플립 커버 화면 같은 작은 창에선 탭·광고 없이 러닝 화면만 띄운다 (가로로 눕힌 폰은 폭이 넓어서 제외)
+    val config = LocalConfiguration.current
+    if (config.screenWidthDp < 400 && config.screenHeightDp < 480) return CoverRunScreen()
     val nav = rememberNavController()
     val ad = if (adsReady) rememberNativeAd() else null
     // 탭 화면은 Pager에 계속 살려둔다. 탭마다 화면을 새로 만들면 첫 프레임이 길어 전환이 끊긴다.

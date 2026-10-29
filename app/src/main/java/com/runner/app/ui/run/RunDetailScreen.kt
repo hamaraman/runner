@@ -118,6 +118,7 @@ fun RunDetailScreen(id: String, onBack: () -> Unit) {
 @Composable
 private fun RunDetailBody(run: RunRecord) {
     val splits = remember(run.id) { Geo.splitsSec(run.points) }
+    val gainM = remember(run.id) { Geo.elevationGainM(run.points) }
     LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             RouteMap(run.points, Modifier.fillMaxWidth().height(320.dp))
@@ -133,6 +134,7 @@ private fun RunDetailBody(run: RunRecord) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         StatBlock("시간", Pace.formatDuration(run.durationSec))
                         StatBlock("평균 페이스", Pace.format(run.paceSecPerKm))
+                        if (gainM >= 1) StatBlock("오르막", "+%.0fm".format(gainM))
                     }
                     RunShoeRow(run.id, run.shoeId, Modifier.padding(top = 8.dp))
                 }

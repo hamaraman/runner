@@ -48,4 +48,13 @@ class SplitsTest {
         assertEquals(1, splits.size)
         assertTrue(splits[0] < 100)
     }
+
+    @Test
+    fun elevationGainIgnoresNoiseAndSegmentGaps() {
+        fun p(alt: Double?, seg: Int = 0) = TrackPoint(0.0, 0.0, 0, segment = seg, altM = alt)
+        // 2m 출렁임은 무시, 10→20→30으로 20m 오름, 내려갔다 다시 6m 오름, 새 구간 시작의 50m 차이는 무시
+        val pts = listOf(p(10.0), p(12.0), p(9.0), p(20.0), p(null), p(30.0), p(24.0), p(30.0), p(80.0, seg = 1), p(81.0, seg = 1))
+        assertEquals(26.0, Geo.elevationGainM(pts), 1e-9)
+        assertEquals(0.0, Geo.elevationGainM(listOf(p(null), p(null))), 1e-9)
+    }
 }

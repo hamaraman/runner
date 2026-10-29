@@ -11,6 +11,8 @@ data class TrackPoint(
     val accuracyM: Float = 0f,
     /** 일시정지 후 재개하면 증가. 다른 구간끼리는 거리를 잇지 않는다. */
     val segment: Int = 0,
+    /** GPS 고도(m). 기기가 주지 않으면 null. */
+    val altM: Double? = null,
 )
 
 /** 완료된 러닝 1회 기록. */

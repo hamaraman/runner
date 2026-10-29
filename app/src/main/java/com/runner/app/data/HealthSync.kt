@@ -44,7 +44,7 @@ object HealthSync {
             // 일시정지 시간까지 포함한 실제 끝 시각. 경로 점은 세션 안에 있어야 한다.
             val end = Instant.ofEpochMilli(maxOf(run.startedAtMs + run.durationSec * 1000, run.points.maxOfOrNull { it.timeMs } ?: 0) + 1)
             val route = run.points.filter { it.timeMs >= run.startedAtMs }.map {
-                ExerciseRoute.Location(Instant.ofEpochMilli(it.timeMs), it.lat, it.lng, horizontalAccuracy = Length.meters(it.accuracyM.toDouble()))
+                ExerciseRoute.Location(Instant.ofEpochMilli(it.timeMs), it.lat, it.lng, horizontalAccuracy = Length.meters(it.accuracyM.toDouble()), altitude = it.altM?.let(Length::meters))
             }
             val device = Device(type = Device.TYPE_PHONE)
             val records = listOf<Record>(

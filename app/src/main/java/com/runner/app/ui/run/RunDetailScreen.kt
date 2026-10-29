@@ -51,6 +51,7 @@ import com.runner.core.Geo
 import com.runner.core.Gpx
 import com.runner.core.Pace
 import com.runner.core.RunRecord
+import com.runner.core.kcal
 
 @Composable
 fun RunDetailScreen(id: String, onBack: () -> Unit) {
@@ -119,6 +120,7 @@ fun RunDetailScreen(id: String, onBack: () -> Unit) {
 private fun RunDetailBody(run: RunRecord) {
     val splits = remember(run.id) { Geo.splitsSec(run.points) }
     val gainM = remember(run.id) { Geo.elevationGainM(run.points) }
+    val coach by rememberContainer().coach.state.collectAsStateWithLifecycle()
     LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             RouteMap(run.points, Modifier.fillMaxWidth().height(320.dp))
@@ -134,6 +136,7 @@ private fun RunDetailBody(run: RunRecord) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         StatBlock("시간", Pace.formatDuration(run.durationSec))
                         StatBlock("평균 페이스", Pace.format(run.paceSecPerKm))
+                        StatBlock("칼로리", "${run.kcal(coach.weightKg)}kcal")
                         if (gainM >= 1) StatBlock("오르막", "+%.0fm".format(gainM))
                     }
                     RunShoeRow(run.id, run.shoeId, Modifier.padding(top = 8.dp))

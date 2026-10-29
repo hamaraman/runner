@@ -39,6 +39,7 @@ fun CoachSettingsDialog(initial: CoachSettings, onDismiss: () -> Unit, onSave: (
     var paceAlert by remember { mutableStateOf(initial.paceAlert) }
     var autoPause by remember { mutableStateOf(initial.autoPause) }
     var interval by remember { mutableStateOf(initial.intervalSession) }
+    var weight by remember { mutableStateOf(initial.weightKg.toString()) }
     var manualPace by remember {
         mutableStateOf(initial.manualTargetPaceSec?.let { "%d:%02d".format(it / 60, it % 60) }.orEmpty())
     }
@@ -71,6 +72,7 @@ fun CoachSettingsDialog(initial: CoachSettings, onDismiss: () -> Unit, onSave: (
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                TextInput("체중 (kg, 칼로리 계산용)", weight, { weight = it }, placeholder = "65")
             }
         },
         confirmButton = {
@@ -80,7 +82,12 @@ fun CoachSettingsDialog(initial: CoachSettings, onDismiss: () -> Unit, onSave: (
                     Toast.makeText(context, "페이스는 6:00처럼 입력해주세요 (2:30~20:00)", Toast.LENGTH_SHORT).show()
                     return@save
                 }
-                onSave(CoachSettings(voice, km, paceAlert, autoPause, paceSec, interval))
+                val weightKg = weight.trim().toIntOrNull()
+                if (weightKg == null || weightKg !in 25..250) {
+                    Toast.makeText(context, "체중은 25~250kg 사이로 입력해주세요", Toast.LENGTH_SHORT).show()
+                    return@save
+                }
+                onSave(CoachSettings(voice, km, paceAlert, autoPause, paceSec, interval, weightKg))
             }) { Text("저장") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("취소") } },

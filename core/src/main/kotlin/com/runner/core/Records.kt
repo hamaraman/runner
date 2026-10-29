@@ -23,6 +23,15 @@ object Records {
         return PersonalBests(runs.maxOfOrNull { it.distanceM }, best(1), best(5), best(10))
     }
 
+    /** 이번 달까지 최근 [months]개월의 월별 거리(km), 오래된 달부터. [runs]는 (날짜, 거리m). */
+    fun monthlyKm(runs: List<Pair<LocalDate, Double>>, today: LocalDate, months: Int = 6): List<Double> {
+        val first = today.withDayOfMonth(1).minusMonths(months - 1L)
+        return (0 until months).map { i ->
+            val m = first.plusMonths(i.toLong())
+            runs.filter { (d, _) -> d.year == m.year && d.month == m.month }.sumOf { it.second } / 1000
+        }
+    }
+
     /** [run]이 이전 기록들([before])을 깬 항목 이름. 첫 기록은 축하할 게 없어 빈 목록. */
     fun newBests(run: RunRecord, before: List<RunRecord>): List<String> {
         if (before.isEmpty()) return emptyList()

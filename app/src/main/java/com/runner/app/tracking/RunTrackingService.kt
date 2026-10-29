@@ -249,6 +249,7 @@ class RunTrackingService : Service() {
             timeMs = location.time,
             accuracyM = location.accuracy,
             segment = segment,
+            altM = if (location.hasAltitude()) location.altitude else null,
         )
         if (!Geo.isPlausible(lastAccepted, point)) return
         val added = lastAccepted?.let { Geo.distanceM(it, point) } ?: 0.0

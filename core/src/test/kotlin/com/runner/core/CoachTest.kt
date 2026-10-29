@@ -142,4 +142,10 @@ class VoiceTextTest {
             VoiceText.km(KmSplitTracker.Split(3, 320, 993), 331.0),
         )
     }
+
+    @Test
+    fun kcalIsWeightTimesKm() {
+        assertEquals(650, RunRecord("r", 0, 3000, 10_000.0).kcal(65))
+        assertEquals(0, RunRecord("r", 0, 0, 0.0).kcal(65))
+    }
 }

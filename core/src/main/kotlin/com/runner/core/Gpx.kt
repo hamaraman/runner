@@ -11,7 +11,7 @@ object Gpx {
         // 일시정지 구간은 별도 trkseg로 나눠 선이 이어지지 않게 한다
         run.points.groupBy { it.segment }.values.forEach { seg ->
             append("<trkseg>\n")
-            seg.forEach { append("""<trkpt lat="${it.lat}" lon="${it.lng}"><time>${Instant.ofEpochMilli(it.timeMs)}</time></trkpt>""").append('\n') }
+            seg.forEach { append("""<trkpt lat="${it.lat}" lon="${it.lng}">${it.altM?.let { a -> "<ele>$a</ele>" }.orEmpty()}<time>${Instant.ofEpochMilli(it.timeMs)}</time></trkpt>""").append('\n') }
             append("</trkseg>\n")
         }
         append("</trk></gpx>\n")

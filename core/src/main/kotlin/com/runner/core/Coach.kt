@@ -14,7 +14,12 @@ data class CoachSettings(
     val manualTargetPaceSec: Int? = null,
     /** 다음 러닝에 쓸 초보 인터벌 프로그램 회차([IntervalPrograms.beginner] 인덱스). null이면 끔. */
     val intervalSession: Int? = null,
+    /** 칼로리 계산용 체중(kg). */
+    val weightKg: Int = 65,
 )
+
+/** 러닝 소모 칼로리 추정. 달리기는 속도와 거의 상관없이 체중(kg) × 거리(km) × 약 1kcal. */
+fun RunRecord.kcal(weightKg: Int): Int = (weightKg * distanceM / 1000).roundToInt()
 
 object TargetPace {
     /** 수동 목표 페이스에 주는 허용 범위(±초) */

@@ -34,6 +34,23 @@ object Geo {
         return distanceM(prev, next) / dt <= maxSpeedMps
     }
 
+    /**
+     * 누적 오르막(m). GPS 고도는 몇 m씩 출렁이므로 마지막 기준점에서 [thresholdM] 이상
+     * 오르거나 내려가야 기준점을 옮긴다. 구간(segment)이 바뀌면 기준점을 새로 잡는다.
+     */
+    fun elevationGainM(points: List<TrackPoint>, thresholdM: Double = 5.0): Double {
+        var gain = 0.0
+        var ref: TrackPoint? = null
+        for (p in points) {
+            val alt = p.altM ?: continue
+            val r = ref
+            if (r == null || r.segment != p.segment) { ref = p; continue }
+            val diff = alt - r.altM!!
+            if (diff >= thresholdM) { gain += diff; ref = p } else if (diff <= -thresholdM) ref = p
+        }
+        return gain
+    }
+
     fun totalDistanceM(points: List<TrackPoint>): Double =
         points.zipWithNext { a, b -> if (a.segment == b.segment) distanceM(a, b) else 0.0 }.sum()
 

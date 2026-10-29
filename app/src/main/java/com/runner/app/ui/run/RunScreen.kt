@@ -276,6 +276,7 @@ fun RunScreen(onOpenRun: (String) -> Unit, onOpenAllRoutes: () -> Unit, onOpenSh
                 val goal by container.weeklyGoalKm.state.collectAsStateWithLifecycle()
                 WeeklySummary(runs, goal) { showGoal = true }
             }
+            if (runs.isNotEmpty()) item { MonthlySummary(runs) }
             if (runs.isNotEmpty()) item { BestsCard(runs) }
             if (ad != null) item(key = "ad") { NativeAdCard(ad) }
             item {
@@ -519,6 +520,25 @@ private fun WeeklySummary(runs: List<RunRecord>, goalKm: Double, onSetGoal: () -
             }
             Spacer(Modifier.height(12.dp))
             WeekBars(listOf("월", "화", "수", "목", "금", "토", "일"), perDay, today.dayOfWeek.value - 1)
+        }
+    }
+}
+
+/** 최근 6개월 월별 거리. */
+@Composable
+private fun MonthlySummary(runs: List<RunRecord>) {
+    val today = LocalDate.now()
+    val perMonth = Records.monthlyKm(runs.map { millisToLocal(it.startedAtMs).toLocalDate() to it.distanceM }, today)
+    val labels = (5 downTo 0).map { "${today.minusMonths(it.toLong()).monthValue}월" }
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+        Column(Modifier.padding(16.dp)) {
+            Text("월간 거리", style = Eyebrow, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("%.1f".format(perMonth.last()), style = MaterialTheme.typography.displaySmall)
+                Text(" km 이번 달", Modifier.padding(bottom = 6.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.height(12.dp))
+            WeekBars(labels, perMonth, labels.lastIndex)
         }
     }
 }

@@ -28,7 +28,7 @@ private val BarTop = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
 private val BarEnd = RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
 
 /**
- * 요일별 거리 막대(월~일). 한 가지 색(크기), 오늘만 진하게, 값 라벨은 오늘·최대일에만.
+ * 기간별 거리 막대(요일·월). 한 가지 색(크기), 오늘(이번 달)만 진하게, 값 라벨은 오늘·최대일에만.
  * 거리 0인 날은 막대 대신 기준선만 남는다.
  */
 @Composable
@@ -37,7 +37,7 @@ fun WeekBars(days: List<String>, km: List<Double>, todayIndex: Int, modifier: Mo
     val maxIndex = km.indexOf(km.max())
     val bar = MaterialTheme.colorScheme.primary
     val desc = days.zip(km).joinToString { (d, v) -> "$d %.1fkm".format(v) }
-    Column(modifier.semantics { contentDescription = "요일별 거리: $desc" }) {
+    Column(modifier.semantics { contentDescription = "거리: $desc" }) {
         Row(Modifier.fillMaxWidth().height(96.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             km.forEachIndexed { i, v ->
                 Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {

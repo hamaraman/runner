@@ -36,7 +36,7 @@ private const val LATEST_RELEASE = "https://api.github.com/repos/hamaraman/runne
 
 private data class Release(val tag: String, val url: String)
 
-/** 앱 시작 시 GitHub 최신 릴리스를 확인해 새 버전이면 다이얼로그를 띄운다. Play 스토어 설치본은 대신 Play 인앱 업데이트(즉시)를 띄운다. "나중에"는 하루 동안 다시 안 띄운다. 오프라인·실패는 조용히 무시. */
+/** 앱 시작 시 GitHub 최신 릴리스를 확인해 새 버전이면 다이얼로그를 띄운다. Play 스토어 설치본은 GitHub를 보지 않고 Play 인앱 업데이트(즉시)만 띄운다. "나중에"는 하루 동안 다시 안 띄운다. 오프라인·실패는 조용히 무시. */
 @Composable
 fun UpdateCheck() {
     val context = LocalContext.current
@@ -45,24 +45,22 @@ fun UpdateCheck() {
     val later = { prefs.edit().putLong("laterAt", System.currentTimeMillis()).apply(); release = null }
     val playLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {}
     LaunchedEffect(Unit) {
-        val fromPlay = context.installedFromPlay()
-        if (fromPlay) {
-            // Play 인앱 업데이트를 띄웠으면 끝. Play가 아직 새 버전을 모르거나(캐시·심사 중) 실패하면 아래 GitHub 확인으로 넘어간다
-            val launched = runCatching {
+        if (context.installedFromPlay()) {
+            // Play 설치본의 판단 기준은 Play뿐이다. GitHub 릴리스는 Play 출시보다 앞서므로 안내하면 받을 수 없는 스토어 화면으로 보내게 된다
+            runCatching {
                 val manager = AppUpdateManagerFactory.create(context)
                 val info = manager.appUpdateInfo.await()
                 val available = info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE ||
                     info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS
-                available && info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE) &&
+                if (available && info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)) {
                     manager.startUpdateFlowForResult(info, playLauncher, AppUpdateOptions.defaultOptions(AppUpdateType.IMMEDIATE))
-            }.getOrDefault(false)
-            if (launched) return@LaunchedEffect
+                }
+            }
+            return@LaunchedEffect
         }
         if (System.currentTimeMillis() - prefs.getLong("laterAt", 0) < 24 * 60 * 60 * 1000L) return@LaunchedEffect
         val latest = runCatching { fetchLatest() }.getOrNull() ?: return@LaunchedEffect
-        if (isNewerVersion(latest.tag, context.versionName())) {
-            release = if (fromPlay) latest.copy(url = "https://play.google.com/store/apps/details?id=${context.packageName}") else latest
-        }
+        if (isNewerVersion(latest.tag, context.versionName())) release = latest
     }
     val r = release ?: return
     AlertDialog(

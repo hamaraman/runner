@@ -67,6 +67,9 @@ data class Race(
     val url: String = "",
     val registered: Boolean = false,
     val goalTimeSec: Long? = null,
+    /** 대회가 끝난 뒤 적는 완주 기록. */
+    val finishTimeSec: Long? = null,
+    val memo: String = "",
 )
 
 @Serializable

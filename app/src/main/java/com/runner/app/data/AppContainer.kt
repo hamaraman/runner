@@ -127,6 +127,14 @@ class AppContainer(context: Context) {
         return autoPlan(today)
     }
 
+    /** 대회일이 지난 훈련표를 지운다. 다음 대회가 있으면 그 대회로 새로 만든다. */
+    fun expirePlan(today: LocalDate = LocalDate.now()) {
+        val p = plan.value ?: return
+        if (p.raceDateEpochDay >= today.toEpochDay()) return
+        plan.update { null }
+        autoPlan(today)
+    }
+
     private fun autoPlan(today: LocalDate): Race? {
         val target = TrainingPlanGenerator.autoTarget(races.value, plan.value, today) ?: return null
         val since = today.minusDays(28).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()

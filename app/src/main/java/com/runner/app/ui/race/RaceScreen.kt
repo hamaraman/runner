@@ -99,14 +99,22 @@ fun RaceScreen(ad: NativeAd? = null, onMakePlan: (String) -> Unit) {
     var year by remember { mutableStateOf(LocalDate.now().year) }
     var prefill by remember { mutableStateOf<CalendarRace?>(null) }
     var deleting by remember { mutableStateOf<Race?>(null) }
+    var showDone by remember { mutableStateOf(false) }
+    var recording by remember { mutableStateOf<Race?>(null) }
 
     val today = LocalDate.now().toEpochDay()
     val (upcoming, past) = races.sortedBy { it.dateEpochDay }.partition { it.dateEpochDay >= today }
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (upcoming.isNotEmpty()) item { SectionTitle("내 대회") }
-            items(upcoming, key = { it.id }) { r ->
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(!showDone, { showDone = false }, { Text("예정") })
+                    FilterChip(showDone, { showDone = true }, { Text("완료 ${past.size}") })
+                }
+            }
+            if (!showDone && upcoming.isNotEmpty()) item { SectionTitle("내 대회") }
+            if (!showDone) items(upcoming, key = { it.id }) { r ->
                 RaceCard(
                     r,
                     onMakePlan = { onMakePlan(r.id) },
@@ -116,69 +124,71 @@ fun RaceScreen(ad: NativeAd? = null, onMakePlan: (String) -> Unit) {
                     onDelete = { deleting = r },
                 )
             }
-            if (past.isNotEmpty()) {
-                item { SectionTitle("지난 대회") }
+            if (showDone) {
+                if (past.isEmpty()) item { EmptyState("완료한 대회가 없어요") }
                 items(past.reversed(), key = { it.id }) { r ->
-                    RaceCard(r, onMakePlan = null, onToggleRegistered = null, onDelete = { deleting = r })
+                    RaceCard(r, onMakePlan = null, onToggleRegistered = null, onDelete = { deleting = r }, onRecord = { recording = r })
                 }
             }
-            item { SectionTitle("전국 대회 일정") }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextInput("대회 이름·장소 검색", query, { query = it })
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FilterChip(!showEnded, { showEnded = false }, { Text("진행·예정") })
-                        FilterChip(showEnded, { showEnded = true }, { Text("종료") })
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FilterChip(distanceFilter == null, { distanceFilter = null }, { Text("전체") })
-                        RaceDistance.entries.forEach { d ->
-                            FilterChip(distanceFilter == d, { distanceFilter = if (distanceFilter == d) null else d }, { Text(d.label) })
+            if (!showDone) {
+                item { SectionTitle("전국 대회 일정") }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextInput("대회 이름·장소 검색", query, { query = it })
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(!showEnded, { showEnded = false }, { Text("진행·예정") })
+                            FilterChip(showEnded, { showEnded = true }, { Text("종료") })
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(distanceFilter == null, { distanceFilter = null }, { Text("전체") })
+                            RaceDistance.entries.forEach { d ->
+                                FilterChip(distanceFilter == d, { distanceFilter = if (distanceFilter == d) null else d }, { Text(d.label) })
+                            }
                         }
                     }
                 }
-            }
-            val list = calendar?.getOrNull()
-            when {
-                calendar == null -> item { Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() } }
-                list.isNullOrEmpty() -> item {
-                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("일정을 불러오지 못했어요", style = MaterialTheme.typography.bodyMedium)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { calendarTry++ }) { Text("다시 시도") }
-                            OutlinedButton(onClick = { openUrl(context, RaceCalendar.URL) }) { Text("저스트런 열기") }
+                val list = calendar?.getOrNull()
+                when {
+                    calendar == null -> item { Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() } }
+                    list.isNullOrEmpty() -> item {
+                        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("일정을 불러오지 못했어요", style = MaterialTheme.typography.bodyMedium)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { calendarTry++ }) { Text("다시 시도") }
+                                OutlinedButton(onClick = { openUrl(context, RaceCalendar.URL) }) { Text("저스트런 열기") }
+                            }
                         }
                     }
-                }
-                else -> {
-                    val years = (list.map { it.date.year } + LocalDate.now().year).distinct().sortedDescending()
-                    item {
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            years.forEach { y -> FilterChip(year == y, { year = y }, { Text("${y}년") }) }
+                    else -> {
+                        val years = (list.map { it.date.year } + LocalDate.now().year).distinct().sortedDescending()
+                        item {
+                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                years.forEach { y -> FilterChip(year == y, { year = y }, { Text("${y}년") }) }
+                            }
                         }
-                    }
-                    val added = races.map { it.name to it.dateEpochDay }.toSet()
-                    val shown = list.filter {
-                        it.date.year == year && (it.date.toEpochDay() < today) == showEnded &&
-                            (query.isBlank() || query in it.name || query in it.place) && (distanceFilter == null || it.distance == distanceFilter)
-                    }
-                    if (shown.isEmpty()) item { EmptyState("조건에 맞는 대회가 없어요") }
-                    // 대회 목록 위쪽(3번째 대회 다음)에 광고 하나. 목록이 수백 개라 정가운데면 거의 안 보인다
-                    val half = minOf(3, shown.size)
-                    items(shown.take(half), key = { "cal-" + it.no }) { r ->
-                        CalendarRow(r, added = (r.name to r.date.toEpochDay()) in added, past = r.date.toEpochDay() < today) { prefill = r; adding = true }
-                    }
-                    if (ad != null && shown.isNotEmpty()) item(key = "ad") { NativeAdCard(ad) }
-                    items(shown.drop(half), key = { "cal-" + it.no }) { r ->
-                        CalendarRow(r, added = (r.name to r.date.toEpochDay()) in added, past = r.date.toEpochDay() < today) { prefill = r; adding = true }
-                    }
-                    item {
-                        Text(
-                            "일정 제공: 저스트런 (justrun.co.kr)",
-                            Modifier.fillMaxWidth().clickable { openUrl(context, RaceCalendar.URL) }.padding(8.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        val added = races.map { it.name to it.dateEpochDay }.toSet()
+                        val shown = list.filter {
+                            it.date.year == year && (it.date.toEpochDay() < today) == showEnded &&
+                                (query.isBlank() || query in it.name || query in it.place) && (distanceFilter == null || it.distance == distanceFilter)
+                        }
+                        if (shown.isEmpty()) item { EmptyState("조건에 맞는 대회가 없어요") }
+                        // 대회 목록 위쪽(3번째 대회 다음)에 광고 하나. 목록이 수백 개라 정가운데면 거의 안 보인다
+                        val half = minOf(3, shown.size)
+                        items(shown.take(half), key = { "cal-" + it.no }) { r ->
+                            CalendarRow(r, added = (r.name to r.date.toEpochDay()) in added, past = r.date.toEpochDay() < today) { prefill = r; adding = true }
+                        }
+                        if (ad != null && shown.isNotEmpty()) item(key = "ad") { NativeAdCard(ad) }
+                        items(shown.drop(half), key = { "cal-" + it.no }) { r ->
+                            CalendarRow(r, added = (r.name to r.date.toEpochDay()) in added, past = r.date.toEpochDay() < today) { prefill = r; adding = true }
+                        }
+                        item {
+                            Text(
+                                "일정 제공: 저스트런 (justrun.co.kr)",
+                                Modifier.fillMaxWidth().clickable { openUrl(context, RaceCalendar.URL) }.padding(8.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -201,6 +211,12 @@ fun RaceScreen(ad: NativeAd? = null, onMakePlan: (String) -> Unit) {
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         }
     }
+    recording?.let { race ->
+        RaceResultDialog(race, onDismiss = { recording = null }) { sec, memo ->
+            container.races.update { list -> list.map { if (it.id == race.id) it.copy(finishTimeSec = sec, memo = memo) else it } }
+            recording = null
+        }
+    }
     deleting?.let { race ->
         AlertDialog(
             onDismissRequest = { deleting = null },
@@ -220,7 +236,7 @@ fun RaceScreen(ad: NativeAd? = null, onMakePlan: (String) -> Unit) {
 }
 
 @Composable
-private fun RaceCard(r: Race, onMakePlan: (() -> Unit)?, onToggleRegistered: (() -> Unit)?, onDelete: () -> Unit) {
+private fun RaceCard(r: Race, onMakePlan: (() -> Unit)?, onToggleRegistered: (() -> Unit)?, onDelete: () -> Unit, onRecord: (() -> Unit)? = null) {
     val context = LocalContext.current
     val date = epochDay(r.dateEpochDay)
     val past = onToggleRegistered == null
@@ -256,20 +272,28 @@ private fun RaceCard(r: Race, onMakePlan: (() -> Unit)?, onToggleRegistered: (()
                             Text("목표 ${Pace.formatDuration(it)}", style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"))
                         }
                     }
+                    r.finishTimeSec?.let {
+                        Spacer(Modifier.height(6.dp))
+                        Text("기록 ${Pace.formatDuration(it)}", style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"))
+                    }
+                    if (r.memo.isNotBlank()) {
+                        Text(r.memo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
-            if (!past || r.url.isNotBlank()) {
-                FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (onToggleRegistered != null) {
-                        FilterChip(
-                            selected = r.registered,
-                            onClick = onToggleRegistered,
-                            label = { Text(if (r.registered) "신청함" else "신청 표시") },
-                        )
-                    }
-                    if (onMakePlan != null) AssistChip(onClick = onMakePlan, label = { Text("훈련 계획 만들기") })
-                    if (r.url.isNotBlank()) AssistChip(onClick = { openUrl(context, r.url) }, label = { Text("대회 페이지") })
+            FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (onToggleRegistered != null) {
+                    FilterChip(
+                        selected = r.registered,
+                        onClick = onToggleRegistered,
+                        label = { Text(if (r.registered) "신청함" else "신청 표시") },
+                    )
                 }
+                if (onMakePlan != null) AssistChip(onClick = onMakePlan, label = { Text("훈련 계획 만들기") })
+                if (onRecord != null) {
+                    AssistChip(onClick = onRecord, label = { Text(if (r.finishTimeSec != null || r.memo.isNotBlank()) "기록 수정" else "기록 작성") })
+                }
+                if (r.url.isNotBlank()) AssistChip(onClick = { openUrl(context, r.url) }, label = { Text("대회 페이지") })
             }
         }
     }
@@ -330,6 +354,35 @@ private fun RaceDialog(initial: CalendarRace?, onDismiss: () -> Unit, onSave: (R
                     ),
                 )
             }) { Text("추가") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("취소") } },
+    )
+}
+
+/** 끝난 대회의 완주 기록과 메모를 적는다. */
+@Composable
+private fun RaceResultDialog(race: Race, onDismiss: () -> Unit, onSave: (Long?, String) -> Unit) {
+    val context = LocalContext.current
+    var time by remember { mutableStateOf(race.finishTimeSec?.let(Pace::formatDuration).orEmpty()) }
+    var memo by remember { mutableStateOf(race.memo) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(race.name) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextInput("완주 기록", time, { time = it }, placeholder = "예: 1:59:00")
+                TextInput("메모 (선택)", memo, { memo = it })
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = save@{
+                val sec = if (time.isBlank()) null else Pace.parseDuration(time) ?: run {
+                    Toast.makeText(context, "기록 형식을 확인해주세요 (예: 1:59:00)", Toast.LENGTH_SHORT).show()
+                    return@save
+                }
+                onSave(sec, memo.trim())
+            }) { Text("저장") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("취소") } },
     )

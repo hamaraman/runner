@@ -47,6 +47,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.runner.app.CrashReport
+import com.runner.app.RunnerApp
 import com.runner.app.ui.plan.PlanScreen
 import com.runner.app.ui.race.RaceScreen
 import com.runner.app.ui.run.AllRoutesScreen
@@ -92,6 +93,12 @@ class MainActivity : ComponentActivity() {
             { startAds() },
         )
         startAds() // 이전 세션에서 이미 동의했으면 바로 시작
+    }
+
+    // 앱을 켜 둔 채 날짜가 바뀌어도 돌아올 때 정리되도록 onResume에서 부른다
+    override fun onResume() {
+        super.onResume()
+        (application as RunnerApp).container.expirePlan()
     }
 
     private fun startAds() {

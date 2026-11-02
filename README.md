@@ -2,6 +2,8 @@
 
 러닝 기록과 마라톤 대회 준비를 한 앱에서. Kotlin + Jetpack Compose. (v0.6.5)
 
+랜딩 페이지: https://runner.wpslvj560.workers.dev
+
 ## 기능
 
 | 탭 | 기능 |
@@ -24,7 +26,7 @@ core/   순수 Kotlin 로직 (JVM, 단위 테스트 포함)
         - TrainingPlanGenerator, Interval: 훈련표·인터벌 생성
         - Records, Coach, Gpx, RaceCalendar, Version
 app/    안드로이드 앱 (Compose UI, 포그라운드 위치 서비스, 로컬 저장소)
-docs/   랜딩 페이지·개인정보처리방침(GitHub Pages), Play Console 등록 가이드
+docs/   랜딩 페이지·개인정보처리방침(Cloudflare Workers), Play Console 등록 가이드
 store/  스토어 아이콘·그래픽·스크린샷
 ```
 

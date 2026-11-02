@@ -28,7 +28,7 @@
   @media (max-width: 720px) { .nav a:not(.btn) { display: none; } }
 
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 12px; font-weight: 700; font-size: .95rem; transition: transform .15s, box-shadow .15s; }
-  .btn:hover { transform: translateY(-1px); }
+  a.btn:hover { transform: translateY(-1px); }
   .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 6px 20px -6px rgba(242,107,29,.6); }
   .btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
   .btn.sm { padding: 9px 16px; font-size: .9rem; }
@@ -162,7 +162,7 @@
     <nav class="nav" aria-label="페이지 이동">
       <a href="#features">기능</a>
       <a href="#faq">자주 묻는 질문</a>
-      <a class="btn primary sm" href="https://play.google.com/store/apps/details?id=io.github.hamaraman.runner">다운로드</a>
+      <span class="btn ghost sm">출시 준비 중</span>
     </nav>
   </div>
 </header>
@@ -175,10 +175,7 @@
       <h1>오늘의 1km부터<br><em>완주까지</em></h1>
       <p>달린 기록은 자동으로 쌓이고, 목표 대회를 정하면 주차별 훈련표가 만들어져요. 1km마다 음성으로 페이스를 알려줘서 화면을 볼 필요도 없어요.</p>
       <div class="actions">
-        <a class="btn primary" href="https://play.google.com/store/apps/details?id=io.github.hamaraman.runner">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 2.5v19l11-9.5L4 2.5zm12.5 8.2L5.8 2l13 7.5-2.3 1.2zm0 2.6 2.3 1.2-13 7.5 10.7-8.7z"/></svg>
-          Google Play에서 받기
-        </a>
+        <span class="btn primary">Google Play 출시 준비 중</span>
         <a class="btn ghost" href="#features">기능 살펴보기</a>
       </div>
       <ul class="notes"><li>회원가입 없이 무료</li><li>Android 8.0 이상</li><li>기록은 내 기기에만</li></ul>
@@ -312,7 +309,7 @@
       <img src="img/icon.png" alt="">
       <h2>오늘, 한 걸음 더 달려볼까요?</h2>
       <p>러너와 함께 첫 1km부터 시작해요.</p>
-      <a class="btn primary" href="https://play.google.com/store/apps/details?id=io.github.hamaraman.runner">Google Play에서 받기</a>
+      <span class="btn primary">Google Play 출시 준비 중</span>
     </div>
   </div>
 </section>

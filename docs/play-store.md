@@ -27,7 +27,7 @@
 | 업로드할 AAB | GitHub 릴리스의 `runner-<버전>.aab` (태그를 올리면 자동 생성). 첫 업로드는 [v0.6.3](https://github.com/hamaraman/runner/releases/tag/v0.6.3)의 `runner-0.6.3.aab` |
 | 앱 아이콘 512×512 | `store/icon_512.png` |
 | 그래픽 이미지 1024×500 | `store/feature_1024x500.png` |
-| 휴대전화 스크린샷 1080×1920 | `store/screenshots/01~05_*.png` |
+| 휴대전화 스크린샷 1080×1920 | `store/screenshots/01~06_*.png` |
 | 개인정보처리방침 URL | https://hamaraman.github.io/runner/privacy.html |
 | 패키지 이름 | `io.github.hamaraman.runner` (첫 업로드 후 변경 불가) |
 
